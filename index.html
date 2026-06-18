@@ -346,7 +346,7 @@
   .act-note{
     width:100%;min-height:34px;max-height:110px;
     border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);
-    color:var(--text);border-radius:8px;padding:5px 8px;
+    color:var(--ink);border-radius:8px;padding:5px 8px;
     font-size:11.5px;font-family:'Inter',sans-serif;line-height:1.45;
     resize:vertical;box-sizing:border-box;transition:border-color .15s;
   }
@@ -419,14 +419,13 @@
 
     <div class="duo-medallions" id="duoMedallions"></div>
 
-    <div id="undoHost"></div>
-
     <div class="tablecard">
       <div class="scrollx">
         <div id="tableHost" class="loading">Loading your week…</div>
       </div>
     </div>
 
+    <div id="undoHost"></div>
     <div id="resetHost"></div>
 
     <div class="duo-stats" id="duoStats"></div>
@@ -862,6 +861,7 @@ async function toggleActivity(iso, activityId, dayIdx, who){
   if(who !== currentUser) return; // can only edit your own
 
   const set = who === USER_A_NAME ? weekDataA[iso] : weekDataB[iso];
+  if(!set) return;
   const wasChecked = set.has(activityId);
   lastAction = { who, iso, activityId, wasChecked };
   if(wasChecked) set.delete(activityId); else set.add(activityId);
@@ -918,10 +918,11 @@ function render(){
   document.getElementById('datePicker').value = formatISO(selectedDate);
 
   let thead = '<thead><tr><th>Activity</th>';
-  dates.forEach((d,i) => {
+  dates.forEach(d => {
     const iso = formatISO(d);
     const isToday = iso === todayISO;
-    thead += `<th class="daycol${isToday ? ' today':''}">${DAY_NAMES[i]}<br><span style="font-weight:400;">${d.getDate()}</span></th>`;
+    const dayIdx = (d.getDay() + 6) % 7; // Mon=0 … Sun=6
+    thead += `<th class="daycol${isToday ? ' today':''}">${DAY_NAMES[dayIdx]}<br><span style="font-weight:400;">${d.getDate()}</span></th>`;
   });
   thead += '</tr></thead>';
 
@@ -936,27 +937,26 @@ function render(){
       const note = localGetNote(currentUser, iso, act.id);
       noteHtml = `<div class="act-note-area"><textarea class="act-note" data-iso="${iso}" data-actid="${act.id}" placeholder="Add a note…">${escapeHtml(note)}</textarea></div>`;
     } else {
-      // Weekly: show dot indicator if any note exists for the visible week
       const hasNote = dates.some(d => localGetNote(currentUser, formatISO(d), act.id));
       if(hasNote) noteHtml = `<span class="note-dot" title="Notes added this week">💬</span>`;
     }
     tbody += `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${displayLabel}</div><div class="act-time">${act.time}</div>${noteHtml}</div></div></td>`;
-    dates.forEach((d,i) => {
+    dates.forEach(d => {
       const iso = formatISO(d);
-      const disabled = act.fridayOnly && i !== 4;
+      const dayIdx = (d.getDay() + 6) % 7; // Mon=0 … Sun=6
+      const disabled = act.fridayOnly && dayIdx !== 4;
       let cell = '';
       if(disabled){
         cell = `<div class="toggle-pair"><button class="toggle disabled" disabled aria-label="Not applicable"></button></div>`;
       } else {
-        // Only show current user's toggle
         const checked = currentUser === USER_A_NAME
           ? (weekDataA[iso] && weekDataA[iso].has(act.id))
           : (weekDataB[iso] && weekDataB[iso].has(act.id));
         cell = `<div class="toggle-pair">
-          <button class="toggle ${act.cat}${checked?' checked':''} self" data-iso="${iso}" data-id="${act.id}" data-day="${i}" data-who="${currentUser}" title="${currentUser}" aria-label="${act.label} ${currentUser} ${DAY_NAMES[i]}">${checked ? '✓':''}</button>
+          <button class="toggle ${act.cat}${checked?' checked':''} self" data-iso="${iso}" data-id="${act.id}" data-day="${dayIdx}" data-who="${currentUser}" title="${currentUser}" aria-label="${act.label} ${currentUser} ${DAY_NAMES[dayIdx]}">${checked ? '✓':''}</button>
         </div>`;
       }
-      if(act.id === 'maghrib'){
+      if(act.id === 'ibrahim_maghrib'){
         cell += `<span class="maghrib-note">${MAGHRIB_NOTE}</span>`;
       }
       tbody += `<td>${cell}</td>`;
@@ -975,9 +975,13 @@ function render(){
     });
   });
 
+  let _noteSaveTimer = null;
   host.querySelectorAll('.act-note').forEach(ta => {
     ta.addEventListener('input', () => {
-      localSetNote(currentUser, ta.dataset.iso, ta.dataset.actid, ta.value.trim());
+      clearTimeout(_noteSaveTimer);
+      _noteSaveTimer = setTimeout(() => {
+        localSetNote(currentUser, ta.dataset.iso, ta.dataset.actid, ta.value.trim());
+      }, 400);
     });
   });
 
@@ -1129,6 +1133,9 @@ function renderQuote(){
 document.getElementById('prevBtn').addEventListener('click', () => {
   if(viewMode === 'daily'){
     selectedDate.setDate(selectedDate.getDate() - 1);
+    const newOffset = weeksBetween(selectedDate);
+    if(newOffset === weekOffset){ render(); return; }
+    weekOffset = newOffset;
   } else {
     weekOffset--; selectedDate.setDate(selectedDate.getDate() - 7);
   }
@@ -1137,6 +1144,9 @@ document.getElementById('prevBtn').addEventListener('click', () => {
 document.getElementById('nextBtn').addEventListener('click', () => {
   if(viewMode === 'daily'){
     selectedDate.setDate(selectedDate.getDate() + 1);
+    const newOffset = weeksBetween(selectedDate);
+    if(newOffset === weekOffset){ render(); return; }
+    weekOffset = newOffset;
   } else {
     weekOffset++; selectedDate.setDate(selectedDate.getDate() + 7);
   }
@@ -1145,6 +1155,9 @@ document.getElementById('nextBtn').addEventListener('click', () => {
 document.getElementById('todayBtn').addEventListener('click', () => {
   if(viewMode === 'daily'){
     selectedDate = new Date();
+    const newOffset = weeksBetween(selectedDate);
+    if(newOffset === weekOffset){ render(); return; }
+    weekOffset = newOffset;
   } else {
     weekOffset = 0; selectedDate = new Date();
   }
