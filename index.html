@@ -267,6 +267,63 @@
     font-family:'IBM Plex Mono',monospace;background:var(--rose-light);border-radius:10px;margin-bottom:16px;
   }
 
+  /* ---------- Edit Modal ---------- */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;
+    display:flex;align-items:center;justify-content:center;padding:16px;
+  }
+  .modal-overlay.hidden{display:none;}
+  .edit-modal{
+    background:var(--surface);border:1px solid var(--line);border-radius:18px;
+    padding:24px;width:100%;max-width:540px;max-height:85vh;overflow-y:auto;
+    box-shadow:var(--shadow);
+  }
+  .edit-modal h3{font-family:'Lora',serif;font-size:18px;margin:0 0 18px;color:var(--teal);}
+  .edit-row{
+    display:grid;grid-template-columns:42px 1fr 100px 80px 32px;
+    gap:6px;align-items:center;margin-bottom:8px;
+  }
+  .edit-row input{
+    background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--ink);font-family:'Inter',sans-serif;font-size:13px;padding:7px 10px;
+  }
+  .edit-row input:focus{outline:none;border-color:var(--teal);}
+  .edit-icon-inp{text-align:center;font-size:18px;padding:4px!important;}
+  .edit-cat-sel{
+    background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--ink-soft);font-size:12px;padding:7px 4px;cursor:pointer;
+  }
+  .edit-del-btn{
+    background:var(--rose-light);border:1px solid var(--rose);border-radius:8px;
+    color:var(--rose);font-size:14px;cursor:pointer;width:32px;height:32px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .edit-add-btn{
+    width:100%;padding:10px;border-radius:10px;border:1.5px dashed var(--teal);
+    background:transparent;color:var(--teal);font-size:13px;font-weight:600;
+    cursor:pointer;margin:8px 0 18px;
+  }
+  .edit-actions{display:flex;gap:10px;justify-content:flex-end;}
+  .edit-save-btn{
+    padding:10px 24px;border-radius:999px;border:none;
+    background:var(--teal);color:var(--check-mark);font-size:13px;font-weight:700;cursor:pointer;
+  }
+  .edit-cancel-btn{
+    padding:10px 24px;border-radius:999px;border:1px solid var(--line);
+    background:transparent;color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer;
+  }
+  .edit-open-btn{
+    font-size:12px;padding:5px 12px;border-radius:999px;
+    border:1px solid var(--line);background:transparent;color:var(--ink-soft);
+    cursor:pointer;font-family:'IBM Plex Mono',monospace;letter-spacing:.04em;
+  }
+  .edit-open-btn:hover{border-color:var(--teal);color:var(--teal);}
+  .edit-col-headers{
+    display:grid;grid-template-columns:42px 1fr 100px 80px 32px;
+    gap:6px;font-size:10px;color:var(--ink-soft);text-transform:uppercase;
+    letter-spacing:.06em;margin-bottom:4px;padding:0 2px;
+  }
+
   .undo-btn{
     margin-top:10px;padding:8px 20px;border-radius:999px;
     border:1.5px solid var(--sky);background:var(--sky-light);
@@ -365,6 +422,22 @@
   </div>
 </div>
 
+<!-- Edit Activities Modal -->
+<div class="modal-overlay hidden" id="editModalOverlay">
+  <div class="edit-modal">
+    <h3 id="editModalTitle">Edit Activities</h3>
+    <div class="edit-col-headers">
+      <span>Icon</span><span>Activity name</span><span>Time</span><span>Category</span><span></span>
+    </div>
+    <div id="editRows"></div>
+    <button class="edit-add-btn" id="editAddBtn">+ Add activity</button>
+    <div class="edit-actions">
+      <button class="edit-cancel-btn" id="editCancelBtn">Cancel</button>
+      <button class="edit-save-btn" id="editSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =========================================================
    CONFIG — fill these in once your Google Apps Script is deployed
@@ -410,6 +483,10 @@ const ACTIVITIES_SAMEEHA = [
 ];
 
 function getActivities(user){
+  try {
+    const stored = localStorage.getItem(`custom_activities:${user}`);
+    if(stored) return JSON.parse(stored);
+  } catch(e){}
   return user === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
 }
 
@@ -600,7 +677,7 @@ function renderSwitcher(){
     return `<button class="mode-btn${active}" data-mode="${mode}">${label}</button>`;
   }).join('');
 
-  document.getElementById('switcher').innerHTML = `<div class="switcher-users">${usersHtml}</div><div class="switcher-modes">${modeHtml}</div>`;
+  document.getElementById('switcher').innerHTML = `<div class="switcher-users">${usersHtml}<button class="edit-open-btn" id="editOpenBtn">✏️ Edit my activities</button></div><div class="switcher-modes">${modeHtml}</div>`;
   document.querySelectorAll('.switch-btn').forEach(btn => {
     btn.addEventListener('click', () => selectUser(btn.dataset.user));
   });
@@ -616,7 +693,81 @@ function renderSwitcher(){
       }
     });
   });
+  document.getElementById('editOpenBtn').addEventListener('click', openEditModal);
 }
+
+/* --------- Edit Activities Modal --------- */
+function openEditModal(){
+  document.getElementById('editModalTitle').textContent = `Edit ${currentUser}'s Activities`;
+  const acts = getActivities(currentUser);
+  renderEditRows(acts);
+  document.getElementById('editModalOverlay').classList.remove('hidden');
+}
+
+function renderEditRows(acts){
+  document.getElementById('editRows').innerHTML = acts.map((act, idx) => `
+    <div class="edit-row" data-idx="${idx}">
+      <input class="edit-icon-inp" type="text" value="${act.icon}" maxlength="2" placeholder="🌙">
+      <input type="text" value="${act.label}" placeholder="Activity name">
+      <input type="text" value="${act.time}" placeholder="Time">
+      <select class="edit-cat-sel">
+        <option value="worship"${act.cat==='worship'?' selected':''}>Worship</option>
+        <option value="study"${act.cat==='study'?' selected':''}>Study</option>
+        <option value="friday"${act.cat==='friday'?' selected':''}>Friday</option>
+      </select>
+      <button class="edit-del-btn" data-idx="${idx}">✕</button>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.edit-del-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const acts = getCurrentEditedActivities();
+      acts.splice(Number(btn.dataset.idx), 1);
+      renderEditRows(acts);
+    });
+  });
+}
+
+function getCurrentEditedActivities(){
+  const defaultActs = getActivities(currentUser);
+  return Array.from(document.querySelectorAll('#editRows .edit-row')).map((row, idx) => {
+    const inputs = row.querySelectorAll('input');
+    const sel = row.querySelector('select');
+    const existingId = defaultActs[idx] ? defaultActs[idx].id : `${currentUser.toLowerCase()}_custom_${Date.now()}_${idx}`;
+    return {
+      id: existingId,
+      icon: inputs[0].value || '⭐',
+      label: inputs[1].value || 'Activity',
+      time: inputs[2].value || '',
+      cat: sel.value,
+      section: defaultActs[idx] ? defaultActs[idx].section : false,
+      fridayOnly: sel.value === 'friday',
+    };
+  });
+}
+
+document.getElementById('editAddBtn').addEventListener('click', () => {
+  const acts = getCurrentEditedActivities();
+  acts.push({ id:`${currentUser.toLowerCase()}_custom_${Date.now()}`, icon:'⭐', label:'New Activity', time:'', cat:'worship' });
+  renderEditRows(acts);
+});
+
+document.getElementById('editSaveBtn').addEventListener('click', () => {
+  const acts = getCurrentEditedActivities();
+  localStorage.setItem(`custom_activities:${currentUser}`, JSON.stringify(acts));
+  document.getElementById('editModalOverlay').classList.add('hidden');
+  render();
+});
+
+document.getElementById('editCancelBtn').addEventListener('click', () => {
+  document.getElementById('editModalOverlay').classList.add('hidden');
+});
+
+document.getElementById('editModalOverlay').addEventListener('click', (e) => {
+  if(e.target === document.getElementById('editModalOverlay')){
+    document.getElementById('editModalOverlay').classList.add('hidden');
+  }
+});
 
 /* --------- Load / Save --------------- */
 async function loadWeek(){
@@ -682,8 +833,8 @@ function setSyncBadge(kind, text){
 }
 
 async function toggleActivity(iso, activityId, dayIdx, who){
-  const act = ACTIVITIES.find(a => a.id === activityId);
-  if(act.fridayOnly && dayIdx !== 4) return;
+  const act = getActivities(who).find(a => a.id === activityId);
+  if(!act || (act.fridayOnly && dayIdx !== 4)) return;
   if(who !== currentUser) return; // can only edit your own
 
   const set = who === USER_A_NAME ? weekDataA[iso] : weekDataB[iso];
