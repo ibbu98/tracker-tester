@@ -336,6 +336,29 @@
     letter-spacing:.06em;margin-bottom:4px;padding:0 2px;
   }
 
+  /* ---------- Photo of the Day ---------- */
+  .photo-day{
+    background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:18px 16px;margin-top:14px;text-align:center;box-shadow:var(--shadow);
+  }
+  .photo-day-label{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:12px;
+  }
+  .photo-day img{
+    max-width:100%;max-height:340px;border-radius:12px;object-fit:cover;
+    display:block;margin:0 auto 12px;border:1px solid var(--line);
+  }
+  .photo-upload-btn{
+    display:inline-block;padding:9px 22px;border-radius:999px;
+    border:1.5px dashed var(--teal);background:transparent;color:var(--teal);
+    font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;
+    transition:background .15s;
+  }
+  .photo-upload-btn:hover{background:rgba(82,191,152,0.09);}
+  .photo-empty{color:var(--ink-soft);font-size:13px;margin-bottom:10px;}
+  .photo-status{font-size:11px;color:var(--ink-soft);margin-top:7px;font-family:'IBM Plex Mono',monospace;min-height:16px;}
+
   .undo-btn{
     margin-top:10px;padding:8px 20px;border-radius:999px;
     border:1.5px solid var(--sky);background:var(--sky-light);
@@ -439,6 +462,7 @@
 
     <div id="undoHost"></div>
     <div id="resetHost"></div>
+    <div id="photoDayHost"></div>
 
     <div class="duo-stats" id="duoStats"></div>
 
@@ -468,6 +492,7 @@
    CONFIG — fill these in once your Google Apps Script is deployed
    ========================================================= */
 const API_URL = "https://script.google.com/macros/s/AKfycbw3XGr6z7huaQgzHz6B2CMBKxw1pVgDWdH-vg4IKaERPuR-0mcOH60yqQ3l077VyjlI/exec";
+const API_SECRET = "drt-ibs-sam-2026";
 const USER_A_NAME = "Ibrahim";   // <-- change to first person's real name
 const USER_B_NAME = "Sameeha";    // <-- change to second person's real name
 
@@ -598,7 +623,7 @@ function configured(){
 }
 
 async function apiGetWeekBoth(start, end){
-  const url = `${API_URL}?action=getWeekBoth&userA=${encodeURIComponent(USER_A_NAME)}&userB=${encodeURIComponent(USER_B_NAME)}&start=${start}&end=${end}`;
+  const url = `${API_URL}?action=getWeekBoth&userA=${encodeURIComponent(USER_A_NAME)}&userB=${encodeURIComponent(USER_B_NAME)}&start=${start}&end=${end}&key=${API_SECRET}`;
   const res = await fetch(url);
   if(!res.ok) throw new Error("Network error " + res.status);
   const json = await res.json();
@@ -607,7 +632,7 @@ async function apiGetWeekBoth(start, end){
 }
 
 async function apiSaveDay(user, date, activities){
-  const url = `${API_URL}?action=saveDay&user=${encodeURIComponent(user)}&date=${date}&activities=${encodeURIComponent(JSON.stringify(activities))}`;
+  const url = `${API_URL}?action=saveDay&user=${encodeURIComponent(user)}&date=${date}&activities=${encodeURIComponent(JSON.stringify(activities))}&key=${API_SECRET}`;
   const res = await fetch(url);
   if(!res.ok) throw new Error("Network error " + res.status);
   const text = await res.text();
@@ -616,6 +641,90 @@ async function apiSaveDay(user, date, activities){
   catch(e) { throw new Error("Bad API response: " + text.substring(0,120)); }
   if(!json.ok) throw new Error(json.error || "Save failed");
   return json;
+}
+
+/* ---------------- Photo API ---------------- */
+async function apiGetPhoto(user, date){
+  const url = `${API_URL}?action=getPhoto&user=${encodeURIComponent(user)}&date=${date}&key=${API_SECRET}`;
+  try{
+    const res = await fetch(url);
+    if(!res.ok) return null;
+    const json = await res.json();
+    return json.ok ? (json.url || null) : null;
+  }catch(e){ return null; }
+}
+
+async function apiUploadPhoto(user, date, base64, mimeType){
+  const body = new URLSearchParams({ action:'uploadPhoto', user, date, photoBase64:base64, mimeType, key:API_SECRET });
+  const res = await fetch(API_URL, { method:'POST', body });
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); } catch(e){ throw new Error('Bad response'); }
+  if(!json.ok) throw new Error(json.error || 'Upload failed');
+  return json.url;
+}
+
+function resizeImage(file, maxPx=900){
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > maxPx || h > maxPx){
+          if(w >= h){ h = Math.round(h * maxPx / w); w = maxPx; }
+          else { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve({ base64: canvas.toDataURL('image/jpeg', 0.82).split(',')[1], mimeType:'image/jpeg' });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function renderPhotoDay(){
+  const host = document.getElementById('photoDayHost');
+  if(viewMode !== 'daily' || !configured()){ host.innerHTML = ''; return; }
+  const iso = formatISO(selectedDate);
+  host.innerHTML = `<div class="photo-day">
+    <div class="photo-day-label">📸 Photo of the Day</div>
+    <div id="photoContent"><div class="photo-status">Loading…</div></div>
+  </div>`;
+
+  const existingUrl = await apiGetPhoto(currentUser, iso);
+  const content = document.getElementById('photoContent');
+  if(!content) return;
+
+  if(existingUrl){
+    content.innerHTML = `<img src="${existingUrl}" alt="Photo of the day">
+      <label class="photo-upload-btn">Change photo <input type="file" accept="image/*" style="display:none" id="photoInput"></label>
+      <div class="photo-status" id="photoStatus"></div>`;
+  } else {
+    content.innerHTML = `<div class="photo-empty">No photo yet for today</div>
+      <label class="photo-upload-btn">📷 Add a photo <input type="file" accept="image/*" style="display:none" id="photoInput"></label>
+      <div class="photo-status" id="photoStatus"></div>`;
+  }
+
+  document.getElementById('photoInput').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const status = document.getElementById('photoStatus');
+    status.textContent = 'Resizing image…';
+    try{
+      const { base64, mimeType } = await resizeImage(file);
+      status.textContent = 'Uploading…';
+      await apiUploadPhoto(currentUser, iso, base64, mimeType);
+      status.textContent = 'Saved ✓';
+      setTimeout(() => renderPhotoDay(), 600);
+    }catch(err){
+      status.textContent = 'Upload failed — ' + err.message;
+    }
+  });
 }
 
 /* ---------------- Local fallback (per-browser) ---------------- */
@@ -1001,6 +1110,7 @@ function render(){
   renderDuoStats();
   renderQuote();
   renderResetBtn();
+  renderPhotoDay();
 }
 
 function renderLight(){
