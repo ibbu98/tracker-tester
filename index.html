@@ -167,9 +167,17 @@
   .person-panel{
     background:var(--surface);border:1px solid var(--line);border-radius:16px;
     padding:14px 12px 10px;box-shadow:var(--shadow);
+    transition:box-shadow .2s ease, border-color .2s ease;
   }
   .person-panel.userA{border-top:3px solid var(--teal);}
   .person-panel.userB{border-top:3px solid var(--rose);}
+  .person-panel.active-panel.userA{border-color:var(--teal);box-shadow:0 0 0 2px rgba(82,191,152,0.25), var(--shadow);}
+  .person-panel.active-panel.userB{border-color:var(--rose);box-shadow:0 0 0 2px rgba(217,140,140,0.25), var(--shadow);}
+  .you-badge{
+    font-size:9px;font-family:'IBM Plex Mono',monospace;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;padding:2px 7px;border-radius:999px;margin-left:4px;
+    background:var(--gold);color:var(--check-mark);vertical-align:middle;
+  }
   .person-title{
     display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;
     font-family:'Lora',serif;font-weight:600;font-size:14px;
@@ -1027,8 +1035,10 @@ function renderDuoMedallions(){
           </div>
         </div>`;
     });
-    return `<div class="person-panel ${cls}">
-      <div class="person-title"><span class="gate-avatar ${cls}">${name.charAt(0).toUpperCase()}</span>${name}</div>
+    const isActive = name === currentUser;
+    const badge = isActive ? '<span class="you-badge">You</span>' : '';
+    return `<div class="person-panel ${cls}${isActive ? ' active-panel' : ''}">
+      <div class="person-title"><span class="gate-avatar ${cls}">${name.charAt(0).toUpperCase()}</span>${name}${badge}</div>
       <div class="medallions">${inner}</div>
     </div>`;
   }
