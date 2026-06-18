@@ -340,6 +340,20 @@
   }
   .reset-day-btn:hover{background:rgba(217,140,140,0.28);transform:translateY(-1px);}
   #resetHost{text-align:center;}
+
+  /* ---------- Activity Notes ---------- */
+  .act-note-area{margin-top:5px;}
+  .act-note{
+    width:100%;min-height:34px;max-height:110px;
+    border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);
+    color:var(--text);border-radius:8px;padding:5px 8px;
+    font-size:11.5px;font-family:'Inter',sans-serif;line-height:1.45;
+    resize:vertical;box-sizing:border-box;transition:border-color .15s;
+  }
+  .act-note:focus{outline:none;border-color:var(--gold);background:rgba(255,255,255,0.07);}
+  .act-note::placeholder{color:rgba(255,255,255,0.25);}
+  .note-dot{font-size:11px;margin-left:4px;opacity:0.65;cursor:default;vertical-align:middle;}
+
   .switchuser-link{
     text-align:center;margin-top:18px;
   }
@@ -605,6 +619,16 @@ function localSet(user, iso, arr){
     localStorage.setItem(`tracker:${user}:${iso}`, JSON.stringify(arr));
   }catch(e){}
 }
+function localGetNote(user, iso, actId){
+  try{ return localStorage.getItem(`anote:${user}:${iso}:${actId}`) || ''; }catch(e){ return ''; }
+}
+function localSetNote(user, iso, actId, text){
+  try{
+    if(text) localStorage.setItem(`anote:${user}:${iso}:${actId}`, text);
+    else localStorage.removeItem(`anote:${user}:${iso}:${actId}`);
+  }catch(e){}
+}
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* ---------------- Date helpers ---------------- */
 function startOfWeek(date){
@@ -906,7 +930,17 @@ function render(){
   getActivities(currentUser).forEach(act => {
     const displayLabel = getLabel(act.id, labelDate);
     tbody += `<tr class="${act.section ? 'section-start':''}" data-act="${act.id}">`;
-    tbody += `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${displayLabel}</div><div class="act-time">${act.time}</div></div></div></td>`;
+    let noteHtml = '';
+    if(viewMode === 'daily'){
+      const iso = formatISO(dates[0]);
+      const note = localGetNote(currentUser, iso, act.id);
+      noteHtml = `<div class="act-note-area"><textarea class="act-note" data-iso="${iso}" data-actid="${act.id}" placeholder="Add a note…">${escapeHtml(note)}</textarea></div>`;
+    } else {
+      // Weekly: show dot indicator if any note exists for the visible week
+      const hasNote = dates.some(d => localGetNote(currentUser, formatISO(d), act.id));
+      if(hasNote) noteHtml = `<span class="note-dot" title="Notes added this week">💬</span>`;
+    }
+    tbody += `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${displayLabel}</div><div class="act-time">${act.time}</div>${noteHtml}</div></div></td>`;
     dates.forEach((d,i) => {
       const iso = formatISO(d);
       const disabled = act.fridayOnly && i !== 4;
@@ -938,6 +972,12 @@ function render(){
   host.querySelectorAll('.toggle:not(.disabled)').forEach(btn => {
     btn.addEventListener('click', () => {
       toggleActivity(btn.dataset.iso, btn.dataset.id, Number(btn.dataset.day), btn.dataset.who);
+    });
+  });
+
+  host.querySelectorAll('.act-note').forEach(ta => {
+    ta.addEventListener('input', () => {
+      localSetNote(currentUser, ta.dataset.iso, ta.dataset.actid, ta.value.trim());
     });
   });
 
