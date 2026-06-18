@@ -374,20 +374,43 @@ const USER_B_NAME = "Sameeha";    // <-- change to second person's real name
 
 /* ========================================================= */
 
-const ACTIVITIES = [
-  { id:'tahajjud',    label:'Tahajjud',                 time:'Before Fajr', cat:'worship', icon:'🌙' },
-  { id:'quran',       label:"Holy Qur'an (Tilawah)",    time:'Fajr',        cat:'worship', icon:'📖' },
-  { id:'yaseen',      label:'Surah Yaseen',             time:'Fajr',        cat:'worship', icon:'🕊️' },
-  { id:'adhkar_am',   label:'Morning Adhkar',           time:'Fajr',        cat:'worship', icon:'📿' },
-  { id:'electronics', label:'Electronics 101 Course',   time:'Morning',     cat:'study',   icon:'⚡' },
-  { id:'signal',      label:'Signal Integrity (Book)',  time:'Morning',     cat:'study',   icon:'📡', section:true },
-  { id:'independent', label:'Independent Study',        time:'Midday',      cat:'study',   icon:'✏️' },
-  { id:'adhkar_pm',   label:'Evening Adhkar',           time:'Asr',         cat:'worship', icon:'📿', section:true },
-  { id:'maghrib',     label:'After-Maghrib Recitation', time:'Maghrib',     cat:'worship', icon:'🌇' },
-  { id:'thaleem',     label:'Thaleem',                  time:'Isha',        cat:'worship', icon:'👥' },
-  { id:'masterclass', label:'Masterclass Course',       time:'Evening',     cat:'study',   icon:'🎓', section:true },
-  { id:'kahf',        label:'Surah Al-Kahf + Salawat',  time:'Friday',      cat:'friday',  icon:'✨', fridayOnly:true, section:true },
+/* =========================================================
+   IBRAHIM'S ACTIVITIES — edit freely
+   ========================================================= */
+const ACTIVITIES_IBRAHIM = [
+  { id:'ibrahim_tahajjud',    label:'Tahajjud',                 time:'Before Fajr', cat:'worship', icon:'🌙' },
+  { id:'ibrahim_quran',       label:"Holy Qur'an (Tilawah)",    time:'Fajr',        cat:'worship', icon:'📖' },
+  { id:'ibrahim_yaseen',      label:'Surah Yaseen',             time:'Fajr',        cat:'worship', icon:'🕊️' },
+  { id:'ibrahim_adhkar_am',   label:'Morning Adhkar',           time:'Fajr',        cat:'worship', icon:'📿' },
+  { id:'ibrahim_electronics', label:'Electronics 101 Course',   time:'Morning',     cat:'study',   icon:'⚡' },
+  { id:'ibrahim_signal',      label:'Signal Integrity (Book)',  time:'Morning',     cat:'study',   icon:'📡', section:true },
+  { id:'ibrahim_independent', label:'Independent Study',        time:'Midday',      cat:'study',   icon:'✏️' },
+  { id:'ibrahim_adhkar_pm',   label:'Evening Adhkar',           time:'Asr',         cat:'worship', icon:'📿', section:true },
+  { id:'ibrahim_maghrib',     label:'After-Maghrib Recitation', time:'Maghrib',     cat:'worship', icon:'🌇' },
+  { id:'ibrahim_thaleem',     label:'Thaleem',                  time:'Isha',        cat:'worship', icon:'👥' },
+  { id:'ibrahim_masterclass', label:'Masterclass Course',       time:'Evening',     cat:'study',   icon:'🎓', section:true },
+  { id:'ibrahim_kahf',        label:'Surah Al-Kahf + Salawat',  time:'Friday',      cat:'friday',  icon:'✨', fridayOnly:true, section:true },
 ];
+
+/* =========================================================
+   SAMEEHA'S ACTIVITIES — edit freely
+   ========================================================= */
+const ACTIVITIES_SAMEEHA = [
+  { id:'sameeha_tahajjud',    label:'Tahajjud',                 time:'Before Fajr', cat:'worship', icon:'🌙' },
+  { id:'sameeha_quran',       label:"Holy Qur'an (Tilawah)",    time:'Fajr',        cat:'worship', icon:'📖' },
+  { id:'sameeha_yaseen',      label:'Surah Yaseen',             time:'Fajr',        cat:'worship', icon:'🕊️' },
+  { id:'sameeha_adhkar_am',   label:'Morning Adhkar',           time:'Fajr',        cat:'worship', icon:'📿' },
+  { id:'sameeha_study_1',     label:'My Study Activity 1',      time:'Morning',     cat:'study',   icon:'📚' },
+  { id:'sameeha_study_2',     label:'My Study Activity 2',      time:'Morning',     cat:'study',   icon:'✏️', section:true },
+  { id:'sameeha_adhkar_pm',   label:'Evening Adhkar',           time:'Asr',         cat:'worship', icon:'📿', section:true },
+  { id:'sameeha_maghrib',     label:'After-Maghrib Recitation', time:'Maghrib',     cat:'worship', icon:'🌇' },
+  { id:'sameeha_thaleem',     label:'Thaleem',                  time:'Isha',        cat:'worship', icon:'👥' },
+  { id:'sameeha_kahf',        label:'Surah Al-Kahf + Salawat',  time:'Friday',      cat:'friday',  icon:'✨', fridayOnly:true, section:true },
+];
+
+function getActivities(user){
+  return user === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
+}
 
 const MAGHRIB_NOTE = 'Al-Waaqiyah · Al-Mulk · As-Sajdah · Al-Muzzammil';
 const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -506,8 +529,8 @@ function getWeekDates(){
   for(let i=0;i<7;i++){ const d = new Date(base); d.setDate(base.getDate()+i); dates.push(d); }
   return dates;
 }
-function applicableCount(dayIdx){
-  return ACTIVITIES.filter(a => !a.fridayOnly || dayIdx === 4).length;
+function applicableCount(dayIdx, user){
+  return getActivities(user).filter(a => !a.fridayOnly || dayIdx === 4).length;
 }
 
 /* ---------------- Gate / user selection ---------------- */
@@ -663,8 +686,8 @@ async function toggleActivity(iso, activityId, dayIdx, who){
   }
 }
 
-function dayCompletionPct(set, dayIdx){
-  const total = applicableCount(dayIdx);
+function dayCompletionPct(set, dayIdx, user){
+  const total = applicableCount(dayIdx, user);
   return total ? Math.round((set.size/total)*100) : 0;
 }
 
@@ -703,7 +726,7 @@ function render(){
   thead += '</tr></thead>';
 
   let tbody = '<tbody>';
-  ACTIVITIES.forEach(act => {
+  getActivities(currentUser).forEach(act => {
     tbody += `<tr class="${act.section ? 'section-start':''}" data-act="${act.id}">`;
     tbody += `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${act.label}</div><div class="act-time">${act.time}</div></div></div></td>`;
     dates.forEach((d,i) => {
@@ -767,7 +790,7 @@ function renderDuoMedallions(){
     dates.forEach((d,i)=>{
       const iso = formatISO(d);
       const set = dataMap[iso] || new Set();
-      const pct = dayCompletionPct(set, i);
+      const pct = dayCompletionPct(set, i, name);
       const dash = (pct/100) * circ;
       const isToday = iso === todayISO;
       inner += `
@@ -793,13 +816,13 @@ function renderDuoMedallions(){
     panelHTML(USER_B_NAME, weekDataB, 'userB');
 }
 
-function statsFor(dataMap){
+function statsFor(dataMap, user){
   const dates = getWeekDates();
   let totalDone=0, totalPossible=0, worshipDone=0, worshipTotal=0, studyDone=0, studyTotal=0;
   dates.forEach((d,i)=>{
     const iso = formatISO(d);
     const set = dataMap[iso] || new Set();
-    ACTIVITIES.forEach(act => {
+    getActivities(user).forEach(act => {
       if(act.fridayOnly && i !== 4) return;
       totalPossible++;
       const done = set.has(act.id);
@@ -816,8 +839,8 @@ function statsFor(dataMap){
 }
 
 function renderDuoStats(){
-  const sA = statsFor(weekDataA);
-  const sB = statsFor(weekDataB);
+  const sA = statsFor(weekDataA, USER_A_NAME);
+  const sB = statsFor(weekDataB, USER_B_NAME);
   document.getElementById('duoStats').innerHTML = `
     <div class="statcard">
       <div class="person-title" style="justify-content:center;margin-bottom:10px;font-size:13px;">
