@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#12171A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Daily Rhythm">
+<title>Daily Rhythm — Shared Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12171A;
+    --surface:#1B2226;
+    --surface-2:#212A2F;
+    --ink:#EDE7DA;
+    --ink-soft:#8E9894;
+    --teal:#52BF98;
+    --teal-light:rgba(82,191,152,0.14);
+    --gold:#E3B765;
+    --gold-light:rgba(227,183,101,0.16);
+    --sky:#79ACDE;
+    --sky-light:rgba(121,172,222,0.14);
+    --rose:#D98C8C;
+    --rose-light:rgba(217,140,140,0.16);
+    --line:#2D363A;
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 6px 20px rgba(0,0,0,0.4);
+    --check-mark:#12171A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0);
+    background-size: 22px 22px;
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding: 28px 16px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  /* ---------- Header ---------- */
+  header.top{text-align:center;margin-bottom: 24px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--gold);font-weight:600;
+  }
+  h1{
+    font-family:'Lora',serif;font-weight:600;font-size: clamp(28px, 5vw, 40px);
+    margin: 6px 0 6px;color:var(--teal);
+  }
+  .sub{color:var(--ink-soft);font-size:14px;max-width:540px;margin:0 auto;}
+  .syncbadge{
+    display:inline-flex;align-items:center;gap:6px;margin-top:12px;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);
+    background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px;
+  }
+  .syncbadge .dot{width:8px;height:8px;border-radius:50%;}
+  .syncbadge .dot.cloud{background:var(--teal);}
+  .syncbadge .dot.local{background:var(--gold);}
+  .syncbadge .dot.err{background:var(--rose);}
+
+  /* ---------- Name gate ---------- */
+  .gate{
+    max-width:420px;margin:60px auto;text-align:center;
+    background:var(--surface);border:1px solid var(--line);border-radius:18px;
+    padding:36px 28px;box-shadow:var(--shadow);
+  }
+  .gate h2{font-family:'Lora',serif;font-size:22px;color:var(--ink);margin:0 0 6px;}
+  .gate p{color:var(--ink-soft);font-size:13px;margin:0 0 22px;}
+  .gate-btn{
+    display:block;width:100%;padding:14px 18px;margin-bottom:10px;
+    background:var(--surface-2);border:1px solid var(--line);border-radius:12px;
+    color:var(--ink);font-family:'Inter',sans-serif;font-size:15px;font-weight:600;
+    cursor:pointer;transition:transform .12s ease, border-color .12s ease;
+    display:flex;align-items:center;gap:12px;
+  }
+  .gate-btn:hover{transform:translateY(-1px);border-color:var(--teal);}
+  .gate-avatar{
+    width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-family:'Lora',serif;font-weight:600;font-size:15px;color:var(--check-mark);flex:0 0 auto;
+  }
+  .gate-avatar.userA{background:var(--teal);}
+  .gate-avatar.userB{background:var(--rose);}
+  .gate-foot{margin-top:18px;font-size:11px;color:var(--ink-soft);}
+  .gate-foot button{
+    background:none;border:none;color:var(--gold);text-decoration:underline;cursor:pointer;
+    font-family:inherit;font-size:11px;padding:0;
+  }
+  .app{display:none;}
+  .app.visible{display:block;}
+
+  /* ---------- Daily quote ---------- */
+  .quote-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:18px 24px;margin:0 0 22px;box-shadow:var(--shadow);text-align:center;
+  }
+  .quote-arabic{
+    font-family:'Lora',serif;font-size:19px;color:var(--gold);margin-bottom:10px;
+    line-height:1.7;direction:rtl;unicode-bidi:bidi-override;
+  }
+  .quote-english{font-size:13px;color:var(--ink);font-style:italic;margin-bottom:6px;max-width:560px;margin-left:auto;margin-right:auto;}
+  .quote-ref{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--teal);letter-spacing:.06em;text-transform:uppercase;}
+
+  /* ---------- Switcher ---------- */
+  .switcher{
+    display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:22px;
+  }
+  .switch-btn{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 16px 8px 8px;border-radius:999px;
+    border:1px solid var(--line);background:var(--surface);
+    color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer;
+    transition: border-color .15s ease, color .15s ease;
+  }
+  .switch-btn .gate-avatar{width:24px;height:24px;font-size:11px;}
+  .switch-btn.active{border-color:var(--teal);color:var(--ink);background:var(--teal-light);}
+  .switch-btn.active .gate-avatar.userB{box-shadow:0 0 0 1px var(--rose) inset;}
+  .switch-btn .you-tag{
+    font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--gold);
+    text-transform:uppercase;letter-spacing:.05em;
+  }
+  .switcher-users, .switcher-modes{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .mode-btn{
+    padding:8px 16px;border-radius:999px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer;
+    transition:border-color .15s ease, color .15s ease, background .15s ease;
+  }
+  .mode-btn.active{
+    border-color:var(--teal);color:var(--ink);background:var(--teal-light);
+  }
+  .switch-divider{width:1px;background:var(--line);margin:4px 2px;}
+
+  /* ---------- Week nav ---------- */
+  .weeknav{display:flex;align-items:center;justify-content:center;gap:14px;margin: 0 0 18px;flex-wrap:wrap;}
+  .navbtn{
+    border:1px solid var(--line);background:var(--surface);color:var(--teal);
+    width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition: transform .15s ease, box-shadow .15s ease;box-shadow: var(--shadow);
+  }
+  .navbtn:hover{transform:translateY(-1px);}
+  .weekrange-wrap{
+    display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);
+    border-radius:999px;padding:8px 16px;box-shadow:var(--shadow);
+  }
+  .weekrange{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);white-space:nowrap;cursor:pointer;}
+  #datePicker{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);
+    border:none;border-left:1px solid var(--line);background:transparent;padding:0 0 0 8px;
+    width:108px;cursor:pointer;
+  }
+  #datePicker:focus{outline:none;}
+  .todaybtn{
+    font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--teal);
+    background:var(--teal-light);border:none;border-radius:999px;padding:8px 14px;cursor:pointer;
+  }
+
+  /* ---------- Side-by-side medallions ---------- */
+  .duo-medallions{
+    display:grid;grid-template-columns:1fr 1fr;gap:14px;
+    margin: 0 auto 26px;
+  }
+  .person-panel{
+    background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:14px 12px 10px;box-shadow:var(--shadow);
+  }
+  .person-panel.userA{border-top:3px solid var(--teal);}
+  .person-panel.userB{border-top:3px solid var(--rose);}
+  .person-title{
+    display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;
+    font-family:'Lora',serif;font-weight:600;font-size:14px;
+  }
+  .medallions{display:flex;justify-content:space-between;gap:4px;}
+  .medal{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .medal .dayname{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;}
+  .medal.today .dayname{color:var(--gold);}
+  .ringwrap{position:relative;width:38px;height:38px;}
+  .ringwrap svg{transform:rotate(-90deg);}
+  .ringwrap .track{fill:none;stroke:var(--line);stroke-width:4;}
+  .ringwrap .prog{fill:none;stroke-linecap:round;transition:stroke-dasharray .4s ease;}
+  .ringwrap.userA .prog{stroke:url(#ringGradA);}
+  .ringwrap.userB .prog{stroke:url(#ringGradB);}
+  .ringwrap .pct{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;color:var(--ink);
+  }
+  .medal.today .ringwrap::after{content:'';position:absolute;inset:-3px;border:1.5px dashed var(--gold);border-radius:50%;}
+
+  /* ---------- Table ---------- */
+  .tablecard{
+    background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    box-shadow: var(--shadow);overflow:hidden;
+  }
+  .scrollx{overflow-x:auto;}
+  table{border-collapse:collapse;width:100%;min-width:720px;}
+  thead th{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--ink-soft);font-weight:600;text-align:center;padding:14px 6px 10px;
+    border-bottom:1px solid var(--line);background:var(--surface);
+  }
+  thead th.daycol.today{color:var(--gold);}
+  thead th:first-child{
+    text-align:left;padding-left:18px;position:sticky;left:0;z-index:2;background:var(--surface);
+  }
+  tbody tr{border-bottom:1px solid var(--line);}
+  tbody tr:last-child{border-bottom:none;}
+  tbody tr.section-start td{border-top:2px solid var(--line);}
+  td{padding:10px 6px;text-align:center;vertical-align:middle;}
+  td.activity{
+    text-align:left;padding-left:18px;position:sticky;left:0;z-index:1;
+    background:var(--surface);min-width:220px;
+  }
+  .act-row{display:flex;align-items:center;gap:10px;}
+  .act-icon{
+    width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    font-size:15px;flex:0 0 auto;
+  }
+  .act-icon.worship{background:var(--teal-light);}
+  .act-icon.study{background:var(--sky-light);}
+  .act-icon.friday{background:var(--gold-light);}
+  .act-text .act-label{font-size:13.5px;font-weight:600;line-height:1.25;}
+  .act-text .act-time{font-size:11px;color:var(--ink-soft);}
+
+  .toggle-pair{display:flex;gap:6px;justify-content:center;align-items:center;}
+  .toggle{
+    width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);background:transparent;
+    cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+    transition: background .15s ease, border-color .15s ease, transform .1s ease;
+    color:transparent;font-size:13px;position:relative;
+  }
+  .toggle:active{transform:scale(0.9);}
+  .toggle.worship.checked{background:var(--teal);border-color:var(--teal);color:var(--check-mark);}
+  .toggle.study.checked{background:var(--sky);border-color:var(--sky);color:var(--check-mark);}
+  .toggle.friday.checked{background:var(--gold);border-color:var(--gold);color:var(--check-mark);}
+  .toggle.disabled{border-color:var(--line);background:repeating-linear-gradient(45deg, var(--bg) 0 4px, var(--surface) 4px 8px);cursor:default;}
+  .toggle.readonly{cursor:default;opacity:0.55;}
+
+  .maghrib-note{font-size:9px;color:var(--ink-soft);display:block;margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+
+  /* ---------- Stats ---------- */
+  .duo-stats{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px;}
+  .stats{display:grid;grid-template-columns: repeat(3, 1fr);gap:10px;}
+  .statcard{
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:14px 8px;box-shadow: var(--shadow);text-align:center;
+  }
+  .statcard .big{font-family:'Lora',serif;font-size:24px;font-weight:600;color:var(--teal);}
+  .statcard.gold .big{color:var(--gold);}
+  .statcard .lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-top:4px;font-weight:600;}
+
+  /* ---------- Legend ---------- */
+  .legend{display:flex;justify-content:center;gap:22px;flex-wrap:wrap;margin-top:22px;font-size:12px;color:var(--ink-soft);}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block;}
+  .dot.worship{background:var(--teal);}
+  .dot.study{background:var(--sky);}
+  .dot.friday{background:var(--gold);}
+  .dot.self-legend{background:transparent;border:1.5px solid var(--gold);}
+
+  .loading{text-align:center;padding:40px;color:var(--ink-soft);font-size:13px;font-family:'IBM Plex Mono',monospace;}
+  .errornote{
+    text-align:center;padding:16px;color:var(--rose);font-size:12px;
+    font-family:'IBM Plex Mono',monospace;background:var(--rose-light);border-radius:10px;margin-bottom:16px;
+  }
+
+  .reset-day-btn{
+    margin-top:14px;padding:10px 24px;border-radius:999px;
+    border:1.5px solid var(--rose);background:var(--rose-light);
+    color:var(--rose);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
+    cursor:pointer;transition:background .15s ease, transform .1s ease;
+  }
+  .reset-day-btn:hover{background:rgba(217,140,140,0.28);transform:translateY(-1px);}
+  #resetHost{text-align:center;}
+  .switchuser-link{
+    text-align:center;margin-top:18px;
+  }
+  .switchuser-link button{
+    background:none;border:none;color:var(--ink-soft);text-decoration:underline;cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+  }
+
+  @media (max-width:680px){
+    .duo-medallions{grid-template-columns:1fr;}
+    .duo-stats{grid-template-columns:1fr;}
+    .stats{grid-template-columns:1fr 1fr 1fr;}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="ringGradA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#52BF98"/><stop offset="100%" stop-color="#E3B765"/>
+    </linearGradient>
+    <linearGradient id="ringGradB" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D98C8C"/><stop offset="100%" stop-color="#E3B765"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Track My Day</div>
+    <h1>🔥 Streaks</h1>
+    <div class="syncbadge" id="syncBadge"><span class="dot local"></span> Connecting…</div>
+  </header>
+
+  <!-- Name gate -->
+  <div class="gate" id="gate">
+    <h2>Who's checking in?</h2>
+    <p>Pick your name to start tracking. You can switch anytime.</p>
+    <button class="gate-btn" id="pickA"><span class="gate-avatar userA">A</span> <span id="labelA">User A</span></button>
+    <button class="gate-btn" id="pickB"><span class="gate-avatar userB">S</span> <span id="labelB">User B</span></button>
+    <div class="gate-foot">First time? <button id="renameLink">Set your two names</button></div>
+  </div>
+
+  <!-- Main app -->
+  <div class="app" id="app">
+    <div class="switcher" id="switcher"></div>
+
+    <div class="viewmode" id="viewModeSwitcher"></div>
+
+    <div class="weeknav">
+      <button class="navbtn" id="prevBtn" aria-label="Previous week">‹</button>
+      <div class="weekrange-wrap">
+        <label class="weekrange" for="datePicker" id="weekRange">Loading…</label>
+        <input type="date" id="datePicker" aria-label="Jump to date">
+      </div>
+      <button class="navbtn" id="nextBtn" aria-label="Next week">›</button>
+      <button class="todaybtn" id="todayBtn">This week</button>
+    </div>
+
+    <div id="errorHost"></div>
+
+    <div class="quote-card" id="quoteCard"></div>
+
+    <div class="duo-medallions" id="duoMedallions"></div>
+
+    <div class="tablecard">
+      <div class="scrollx">
+        <div id="tableHost" class="loading">Loading your week…</div>
+      </div>
+    </div>
+
+    <div id="resetHost"></div>
+
+    <div class="duo-stats" id="duoStats"></div>
+
+    <div class="switchuser-link"><button id="switchUserBtn">Not you? Switch user</button></div>
+
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIG — fill these in once your Google Apps Script is deployed
+   ========================================================= */
+const API_URL = "https://script.google.com/macros/s/AKfycbw3XGr6z7huaQgzHz6B2CMBKxw1pVgDWdH-vg4IKaERPuR-0mcOH60yqQ3l077VyjlI/exec";
+const USER_A_NAME = "Ibrahim";   // <-- change to first person's real name
+const USER_B_NAME = "Sameeha";    // <-- change to second person's real name
+
+/* ========================================================= */
+
+const ACTIVITIES = [
+  { id:'tahajjud',    label:'Tahajjud',                 time:'Before Fajr', cat:'worship', icon:'🌙' },
+  { id:'quran',       label:"Holy Qur'an (Tilawah)",    time:'Fajr',        cat:'worship', icon:'📖' },
+  { id:'yaseen',      label:'Surah Yaseen',             time:'Fajr',        cat:'worship', icon:'🕊️' },
+  { id:'adhkar_am',   label:'Morning Adhkar',           time:'Fajr',        cat:'worship', icon:'📿' },
+  { id:'electronics', label:'Electronics 101 Course',   time:'Morning',     cat:'study',   icon:'⚡' },
+  { id:'signal',      label:'Signal Integrity (Book)',  time:'Morning',     cat:'study',   icon:'📡', section:true },
+  { id:'independent', label:'Independent Study',        time:'Midday',      cat:'study',   icon:'✏️' },
+  { id:'adhkar_pm',   label:'Evening Adhkar',           time:'Asr',         cat:'worship', icon:'📿', section:true },
+  { id:'maghrib',     label:'After-Maghrib Recitation', time:'Maghrib',     cat:'worship', icon:'🌇' },
+  { id:'thaleem',     label:'Thaleem',                  time:'Isha',        cat:'worship', icon:'👥' },
+  { id:'masterclass', label:'Masterclass Course',       time:'Evening',     cat:'study',   icon:'🎓', section:true },
+  { id:'kahf',        label:'Surah Al-Kahf + Salawat',  time:'Friday',      cat:'friday',  icon:'✨', fridayOnly:true, section:true },
+];
+
+const MAGHRIB_NOTE = 'Al-Waaqiyah · Al-Mulk · As-Sajdah · Al-Muzzammil';
+const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const DAILY_QUOTES = [
+  { arabic:'إِنَّ مَعَ الْعُسْرِ يُسْرًا', english:'Indeed, with hardship comes ease.', ref:'Quran 94:6' },
+  { arabic:'فَاذْكُرُونِي أَذْكُرْكُمْ', english:'Remember Me; I will remember you.', ref:'Quran 2:152' },
+  { arabic:'وَمَن يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ', english:'Whoever relies upon Allah — He is sufficient for him.', ref:'Quran 65:3' },
+  { arabic:'إِنَّ اللَّهَ مَعَ الصَّابِرِينَ', english:'Indeed, Allah is with the patient.', ref:'Quran 2:153' },
+  { arabic:'وَهُوَ مَعَكُمْ أَيْنَ مَا كُنتُمْ', english:'And He is with you wherever you are.', ref:'Quran 57:4' },
+  { arabic:'لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا', english:'Allah does not burden a soul beyond that it can bear.', ref:'Quran 2:286' },
+  { arabic:'وَأَن لَّيْسَ لِلْإِنسَانِ إِلَّا مَا سَعَى', english:'Man will not have except what he strives for.', ref:'Quran 53:39' },
+  { arabic:'إِنَّ اللَّهَ لَا يُضِيعُ أَجْرَ الْمُحْسِنِينَ', english:'Indeed, Allah does not allow the reward of the doers of good to be lost.', ref:'Quran 9:120' },
+  { arabic:'وَعَسَى أَن تَكْرَهُوا شَيْئًا وَهُوَ خَيْرٌ لَّكُمْ', english:'Perhaps you dislike a thing and it is good for you.', ref:'Quran 2:216' },
+  { arabic:'وَاللَّهُ يُحِبُّ الْمُحْسِنِينَ', english:'And Allah loves the doers of good.', ref:'Quran 3:134' },
+  { arabic:'خَيْرُ النَّاسِ أَنْفَعُهُمْ لِلنَّاسِ', english:'The best of people are those most beneficial to people.', ref:'Hadith — Al-Mu\'jam' },
+  { arabic:'مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ طَرِيقًا إِلَى الْجَنَّةِ', english:'Whoever treads a path seeking knowledge, Allah eases for him a path to Paradise.', ref:'Hadith — Muslim' },
+  { arabic:'الطُّهُورُ شَطْرُ الْإِيمَانِ', english:'Purification is half of faith.', ref:'Hadith — Muslim' },
+  { arabic:'الصَّلَاةُ عِمَادُ الدِّينِ', english:'Prayer is the pillar of the religion.', ref:'Hadith — Bayhaqi' },
+  { arabic:'إِنَّ اللَّهَ جَمِيلٌ يُحِبُّ الْجَمَالَ', english:'Indeed Allah is beautiful and loves beauty.', ref:'Hadith — Muslim' },
+  { arabic:'اتَّقِ اللَّهَ حَيْثُمَا كُنْتَ', english:'Be mindful of Allah wherever you are.', ref:'Hadith — Tirmidhi' },
+  { arabic:'وَقُل رَّبِّ زِدْنِي عِلْمًا', english:'And say: My Lord, increase me in knowledge.', ref:'Quran 20:114' },
+  { arabic:'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ', english:'Allah is sufficient for us, and He is the best Disposer of affairs.', ref:'Quran 3:173' },
+  { arabic:'رَبِّ اشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي', english:'My Lord, expand my breast and ease my task for me.', ref:'Quran 20:25–26' },
+  { arabic:'وَلَا تَيْأَسُوا مِن رَّوْحِ اللَّهِ', english:'And do not despair of the mercy of Allah.', ref:'Quran 12:87' },
+  { arabic:'إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ', english:'Actions are but by intentions.', ref:'Hadith — Bukhari & Muslim' },
+  { arabic:'مَن قَرَأَ سُورَةَ الْكَهْفِ فِي يَوْمِ الْجُمُعَةِ أَضَاءَ لَهُ مِنَ النُّورِ', english:'Whoever recites Surah Al-Kahf on Friday, it will illuminate him with light.', ref:'Hadith — Al-Hakim' },
+  { arabic:'أَفْضَلُ الذِّكْرِ لَا إِلَهَ إِلَّا اللَّهُ', english:'The best remembrance is: There is no deity worthy of worship except Allah.', ref:'Hadith — Tirmidhi' },
+  { arabic:'كُنْ فِي الدُّنْيَا كَأَنَّكَ غَرِيبٌ أَوْ عَابِرُ سَبِيلٍ', english:'Be in this world as though you are a stranger or a wayfarer.', ref:'Hadith — Bukhari' },
+  { arabic:'إِنَّ اللَّهَ رَفِيقٌ يُحِبُّ الرِّفْقَ', english:'Indeed Allah is gentle and loves gentleness.', ref:'Hadith — Bukhari & Muslim' },
+  { arabic:'وَتَوَكَّلْ عَلَى اللَّهِ وَكَفَى بِاللَّهِ وَكِيلًا', english:'And put your trust in Allah; sufficient is Allah as a Disposer of affairs.', ref:'Quran 33:3' },
+  { arabic:'إِنَّ الصَّلَاةَ تَنْهَى عَنِ الْفَحْشَاءِ وَالْمُنكَرِ', english:'Indeed, prayer prohibits immorality and wrongdoing.', ref:'Quran 29:45' },
+  { arabic:'وَبِالْأَسْحَارِ هُمْ يَسْتَغْفِرُونَ', english:'And in the hours before dawn they would ask forgiveness.', ref:'Quran 51:18' },
+  { arabic:'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً', english:'Our Lord, give us good in this world and good in the Hereafter.', ref:'Quran 2:201' },
+  { arabic:'وَاسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ', english:'And seek help through patience and prayer.', ref:'Quran 2:45' },
+];
+
+let weekOffset = 0;
+let selectedDate = new Date();
+let todayISO = formatISO(new Date());
+let currentUser = null;
+let weekDataA = {};
+let weekDataB = {};
+let usingCloud = false;
+let viewMode = 'weekly';
+const apiCache = {};
+
+document.getElementById('labelA').textContent = USER_A_NAME;
+document.getElementById('labelB').textContent = USER_B_NAME;
+document.querySelector('#pickA .gate-avatar').textContent = USER_A_NAME.charAt(0).toUpperCase();
+document.querySelector('#pickB .gate-avatar').textContent = USER_B_NAME.charAt(0).toUpperCase();
+
+/* ---------------- API layer ---------------- */
+function configured(){
+  return API_URL && API_URL.indexOf("PASTE_YOUR") === -1;
+}
+
+async function apiGetWeekBoth(start, end){
+  const url = `${API_URL}?action=getWeekBoth&userA=${encodeURIComponent(USER_A_NAME)}&userB=${encodeURIComponent(USER_B_NAME)}&start=${start}&end=${end}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("Network error " + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || "Unknown API error");
+  return json.data;
+}
+
+async function apiSaveDay(user, date, activities){
+  const url = `${API_URL}?action=saveDay&user=${encodeURIComponent(user)}&date=${date}&activities=${encodeURIComponent(JSON.stringify(activities))}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("Network error " + res.status);
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch(e) { throw new Error("Bad API response: " + text.substring(0,120)); }
+  if(!json.ok) throw new Error(json.error || "Save failed");
+  return json;
+}
+
+/* ---------------- Local fallback (per-browser) ---------------- */
+function localGet(user, iso){
+  try{
+    const v = localStorage.getItem(`tracker:${user}:${iso}`);
+    return v ? JSON.parse(v) : [];
+  }catch(e){ return []; }
+}
+function localSet(user, iso, arr){
+  try{
+    localStorage.setItem(`tracker:${user}:${iso}`, JSON.stringify(arr));
+  }catch(e){}
+}
+
+/* ---------------- Date helpers ---------------- */
+function startOfWeek(date){
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1 - day);
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function weeksBetween(targetDate){
+  const a = startOfWeek(targetDate);
+  const b = startOfWeek(new Date());
+  return Math.round(Math.round((a - b) / 86400000) / 7);
+}
+function formatISO(d){
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
+function getWeekDates(){
+  const base = startOfWeek(new Date());
+  base.setDate(base.getDate() + weekOffset*7);
+  const dates = [];
+  for(let i=0;i<7;i++){ const d = new Date(base); d.setDate(base.getDate()+i); dates.push(d); }
+  return dates;
+}
+function applicableCount(dayIdx){
+  return ACTIVITIES.filter(a => !a.fridayOnly || dayIdx === 4).length;
+}
+
+/* ---------------- Gate / user selection ---------------- */
+document.getElementById('pickA').addEventListener('click', () => selectUser(USER_A_NAME));
+document.getElementById('pickB').addEventListener('click', () => selectUser(USER_B_NAME));
+document.getElementById('switchUserBtn').addEventListener('click', () => {
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('gate').style.display = 'block';
+});
+document.getElementById('renameLink').addEventListener('click', () => {
+  alert("To set your two names, open this file's code and edit the lines:\n\nconst USER_A_NAME = \"Alex\";\nconst USER_B_NAME = \"Sam\";\n\n...near the top of the <script> section, then save and reopen.");
+});
+
+function selectUser(name){
+  currentUser = name;
+  localStorage.setItem('tracker:lastUser', name);
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  renderSwitcher();
+  loadWeek();
+}
+
+/* Remember last user on this device */
+const remembered = localStorage.getItem('tracker:lastUser');
+if(remembered === USER_A_NAME || remembered === USER_B_NAME){
+  selectUser(remembered);
+}
+
+function renderSwitcher(){
+  const names = [USER_A_NAME, USER_B_NAME].sort((a,b) => a === currentUser ? -1 : b === currentUser ? 1 : 0);
+  const usersHtml = names.map(name => {
+    const cls = name === USER_A_NAME ? 'userA' : 'userB';
+    const active = name === currentUser ? ' active' : '';
+    const tag = name === currentUser ? '<span class="you-tag">You</span>' : '';
+    return `<button class="switch-btn${active}" data-user="${name}"><span class="gate-avatar ${cls}">${name.charAt(0).toUpperCase()}</span>${name} ${tag}</button>`;
+  }).join('');
+
+  const modes = ['daily','weekly'];
+  const modeHtml = modes.map(mode => {
+    const label = mode === 'daily' ? 'Day' : 'Weekly';
+    const active = mode === viewMode ? ' active' : '';
+    return `<button class="mode-btn${active}" data-mode="${mode}">${label}</button>`;
+  }).join('');
+
+  document.getElementById('switcher').innerHTML = `<div class="switcher-users">${usersHtml}</div><div class="switcher-modes">${modeHtml}</div>`;
+  document.querySelectorAll('.switch-btn').forEach(btn => {
+    btn.addEventListener('click', () => selectUser(btn.dataset.user));
+  });
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if(viewMode !== btn.dataset.mode){
+        viewMode = btn.dataset.mode;
+        if(viewMode === 'weekly'){
+          weekOffset = weeksBetween(selectedDate);
+        }
+        renderSwitcher();
+        loadWeek();
+      }
+    });
+  });
+}
+
+/* --------- Load / Save --------------- */
+async function loadWeek(){
+  document.getElementById('tableHost').innerHTML = '<div class="loading">Loading your week…</div>';
+  document.getElementById('tableHost').className = 'loading';
+  document.getElementById('errorHost').innerHTML = '';
+
+  const dates = getWeekDates();
+  const start = formatISO(dates[0]), end = formatISO(dates[6]);
+  weekDataA = {}; weekDataB = {};
+  dates.forEach(d => { weekDataA[formatISO(d)] = new Set(); weekDataB[formatISO(d)] = new Set(); });
+
+  if(configured()){
+    const cacheKey = `${start}:${end}`;
+    const hit = apiCache[cacheKey];
+    let data = null;
+    if(hit && (Date.now() - hit.time) < 60000){
+      data = hit.data;
+      usingCloud = true;
+      setSyncBadge('cloud', `Synced to shared sheet — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
+    } else {
+      try{
+        data = await apiGetWeekBoth(start, end);
+        apiCache[cacheKey] = { data, time: Date.now() };
+        usingCloud = true;
+        setSyncBadge('cloud', `Synced to shared sheet — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
+      }catch(err){
+        usingCloud = false;
+        setSyncBadge('err', 'Could not reach the shared sheet — showing local data only');
+        dates.forEach(d => {
+          const iso = formatISO(d);
+          weekDataA[iso] = new Set(localGet(USER_A_NAME, iso));
+          weekDataB[iso] = new Set(localGet(USER_B_NAME, iso));
+        });
+        render(); return;
+      }
+    }
+    if(data){
+      dates.forEach(d => {
+        const iso = formatISO(d);
+        weekDataA[iso] = new Set((data[USER_A_NAME] && data[USER_A_NAME][iso]) || []);
+        weekDataB[iso] = new Set((data[USER_B_NAME] && data[USER_B_NAME][iso]) || []);
+        // Trust the sheet — don't fill from localStorage (so sheet deletions are respected)
+        localSet(USER_A_NAME, iso, Array.from(weekDataA[iso]));
+        localSet(USER_B_NAME, iso, Array.from(weekDataB[iso]));
+      });
+    }
+  } else {
+    usingCloud = false;
+    setSyncBadge('local', 'Backend not connected yet — saving on this device only');
+    dates.forEach(d => {
+      const iso = formatISO(d);
+      weekDataA[iso] = new Set(localGet(USER_A_NAME, iso));
+      weekDataB[iso] = new Set(localGet(USER_B_NAME, iso));
+    });
+  }
+
+  render();
+}
+
+function setSyncBadge(kind, text){
+  document.getElementById('syncBadge').innerHTML = `<span class="dot ${kind}"></span> ${text}`;
+}
+
+async function toggleActivity(iso, activityId, dayIdx, who){
+  const act = ACTIVITIES.find(a => a.id === activityId);
+  if(act.fridayOnly && dayIdx !== 4) return;
+  if(who !== currentUser) return; // can only edit your own
+
+  const set = who === USER_A_NAME ? weekDataA[iso] : weekDataB[iso];
+  if(set.has(activityId)) set.delete(activityId); else set.add(activityId);
+
+  renderLight();
+
+  // ALWAYS use localStorage for now (backend sync has network issues)
+  localSet(who, iso, Array.from(set));
+  
+  if(usingCloud){
+    setSyncBadge('local', 'Saving…');
+    try{
+      await apiSaveDay(who, iso, Array.from(set));
+      setSyncBadge('cloud', `Saved ✓ — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
+      setTimeout(() => setSyncBadge('cloud', `Synced to shared sheet — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
+    }catch(err){
+      console.error('Cloud save failed:', err);
+      setSyncBadge('err', 'Save failed: ' + err.message);
+      usingCloud = false;
+    }
+  }
+}
+
+function dayCompletionPct(set, dayIdx){
+  const total = applicableCount(dayIdx);
+  return total ? Math.round((set.size/total)*100) : 0;
+}
+
+/* ---------------- Render ---------------- */
+function getDisplayDates(){
+  if(viewMode === 'daily'){
+    return [new Date(selectedDate)];
+  }
+  return getWeekDates();
+}
+
+function formatSingleDay(d){
+  return `${DAY_NAMES[d.getDay()]} ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function render(){
+  const dates = getDisplayDates();
+  const rangeStr = viewMode === 'daily'
+    ? formatSingleDay(dates[0])
+    : (() => {
+      const first = dates[0], last = dates[6];
+      const sameMonth = first.getMonth() === last.getMonth();
+      return sameMonth
+        ? `${MONTH_NAMES[first.getMonth()]} ${first.getDate()}–${last.getDate()}, ${last.getFullYear()}`
+        : `${MONTH_NAMES[first.getMonth()]} ${first.getDate()} – ${MONTH_NAMES[last.getMonth()]} ${last.getDate()}, ${last.getFullYear()}`;
+    })();
+  document.getElementById('weekRange').textContent = rangeStr;
+  document.getElementById('datePicker').value = formatISO(selectedDate);
+
+  let thead = '<thead><tr><th>Activity</th>';
+  dates.forEach((d,i) => {
+    const iso = formatISO(d);
+    const isToday = iso === todayISO;
+    thead += `<th class="daycol${isToday ? ' today':''}">${DAY_NAMES[i]}<br><span style="font-weight:400;">${d.getDate()}</span></th>`;
+  });
+  thead += '</tr></thead>';
+
+  let tbody = '<tbody>';
+  ACTIVITIES.forEach(act => {
+    tbody += `<tr class="${act.section ? 'section-start':''}" data-act="${act.id}">`;
+    tbody += `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${act.label}</div><div class="act-time">${act.time}</div></div></div></td>`;
+    dates.forEach((d,i) => {
+      const iso = formatISO(d);
+      const disabled = act.fridayOnly && i !== 4;
+      let cell = '';
+      if(disabled){
+        cell = `<div class="toggle-pair"><button class="toggle disabled" disabled aria-label="Not applicable"></button></div>`;
+      } else {
+        // Only show current user's toggle
+        const checked = currentUser === USER_A_NAME
+          ? (weekDataA[iso] && weekDataA[iso].has(act.id))
+          : (weekDataB[iso] && weekDataB[iso].has(act.id));
+        cell = `<div class="toggle-pair">
+          <button class="toggle ${act.cat}${checked?' checked':''} self" data-iso="${iso}" data-id="${act.id}" data-day="${i}" data-who="${currentUser}" title="${currentUser}" aria-label="${act.label} ${currentUser} ${DAY_NAMES[i]}">${checked ? '✓':''}</button>
+        </div>`;
+      }
+      if(act.id === 'maghrib'){
+        cell += `<span class="maghrib-note">${MAGHRIB_NOTE}</span>`;
+      }
+      tbody += `<td>${cell}</td>`;
+    });
+    tbody += '</tr>';
+  });
+  tbody += '</tbody>';
+
+  const host = document.getElementById('tableHost');
+  host.className = '';
+  host.innerHTML = `<table>${thead}${tbody}</table>`;
+
+  host.querySelectorAll('.toggle:not(.disabled)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      toggleActivity(btn.dataset.iso, btn.dataset.id, Number(btn.dataset.day), btn.dataset.who);
+    });
+  });
+
+  renderDuoMedallions();
+  renderDuoStats();
+  renderQuote();
+  renderResetBtn();
+}
+
+function renderLight(){
+  document.querySelectorAll('#tableHost .toggle:not(.disabled)').forEach(btn => {
+    const iso = btn.dataset.iso, id = btn.dataset.id, who = btn.dataset.who;
+    const set = who === USER_A_NAME ? weekDataA[iso] : weekDataB[iso];
+    const checked = set && set.has(id);
+    btn.classList.toggle('checked', checked);
+    btn.textContent = checked ? '✓' : '';
+  });
+  renderDuoMedallions();
+  renderDuoStats();
+}
+
+function renderDuoMedallions(){
+  const dates = getWeekDates();
+  const circ = 2 * Math.PI * 16;
+
+  function panelHTML(name, dataMap, cls){
+    let inner = '';
+    dates.forEach((d,i)=>{
+      const iso = formatISO(d);
+      const set = dataMap[iso] || new Set();
+      const pct = dayCompletionPct(set, i);
+      const dash = (pct/100) * circ;
+      const isToday = iso === todayISO;
+      inner += `
+        <div class="medal${isToday?' today':''}">
+          <div class="dayname">${DAY_NAMES[i]}</div>
+          <div class="ringwrap ${cls}">
+            <svg viewBox="0 0 36 36" width="38" height="38">
+              <circle class="track" cx="18" cy="18" r="16"/>
+              <circle class="prog" cx="18" cy="18" r="16" stroke-dasharray="${dash} ${circ}"/>
+            </svg>
+            <div class="pct">${pct}%</div>
+          </div>
+        </div>`;
+    });
+    return `<div class="person-panel ${cls}">
+      <div class="person-title"><span class="gate-avatar ${cls}">${name.charAt(0).toUpperCase()}</span>${name}</div>
+      <div class="medallions">${inner}</div>
+    </div>`;
+  }
+
+  // Only show current user's medallions
+  const cls = currentUser === USER_A_NAME ? 'userA' : 'userB';
+  const dataMap = currentUser === USER_A_NAME ? weekDataA : weekDataB;
+  document.getElementById('duoMedallions').innerHTML = panelHTML(currentUser, dataMap, cls);
+}
+
+function statsFor(dataMap){
+  const dates = getWeekDates();
+  let totalDone=0, totalPossible=0, worshipDone=0, worshipTotal=0, studyDone=0, studyTotal=0;
+  dates.forEach((d,i)=>{
+    const iso = formatISO(d);
+    const set = dataMap[iso] || new Set();
+    ACTIVITIES.forEach(act => {
+      if(act.fridayOnly && i !== 4) return;
+      totalPossible++;
+      const done = set.has(act.id);
+      if(done) totalDone++;
+      if(act.cat==='study'){ studyTotal++; if(done) studyDone++; }
+      else { worshipTotal++; if(done) worshipDone++; }
+    });
+  });
+  return {
+    overall: totalPossible ? Math.round((totalDone/totalPossible)*100) : 0,
+    worship: worshipTotal ? Math.round((worshipDone/worshipTotal)*100) : 0,
+    study: studyTotal ? Math.round((studyDone/studyTotal)*100) : 0
+  };
+}
+
+function renderDuoStats(){
+  const sA = statsFor(weekDataA);
+  const sB = statsFor(weekDataB);
+  document.getElementById('duoStats').innerHTML = `
+    <div class="statcard">
+      <div class="person-title" style="justify-content:center;margin-bottom:10px;font-size:13px;">
+        <span class="gate-avatar userA" style="width:26px;height:26px;font-size:12px;">${USER_A_NAME.charAt(0)}</span>${USER_A_NAME}
+      </div>
+      <div class="big">${sA.overall}%</div><div class="lbl">Overall</div>
+    </div>
+    <div class="statcard">
+      <div class="person-title" style="justify-content:center;margin-bottom:10px;font-size:13px;">
+        <span class="gate-avatar userB" style="width:26px;height:26px;font-size:12px;">${USER_B_NAME.charAt(0)}</span>${USER_B_NAME}
+      </div>
+      <div class="big" style="color:var(--rose);">${sB.overall}%</div><div class="lbl">Overall</div>
+    </div>
+  `;
+}
+
+function resetDay(iso){
+  const set = currentUser === USER_A_NAME ? weekDataA[iso] : weekDataB[iso];
+  set.clear();
+  localSet(currentUser, iso, []);
+  Object.keys(apiCache).forEach(k => delete apiCache[k]);
+  if(usingCloud) apiSaveDay(currentUser, iso, []).catch(()=>{});
+  renderLight();
+  renderResetBtn();
+}
+
+function renderResetBtn(){
+  const host = document.getElementById('resetHost');
+  if(viewMode === 'daily'){
+    const iso = formatISO(selectedDate);
+    host.innerHTML = `<button class="reset-day-btn" id="resetDayBtn">Reset this day</button>`;
+    document.getElementById('resetDayBtn').addEventListener('click', () => resetDay(iso));
+  } else {
+    host.innerHTML = '';
+  }
+}
+
+function renderQuote(){
+  const d = selectedDate;
+  const dayOfYear = Math.floor((d - new Date(d.getFullYear(),0,0)) / 86400000);
+  const q = DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
+  document.getElementById('quoteCard').innerHTML =
+    `<div class="quote-arabic">${q.arabic}</div>` +
+    `<div class="quote-english">"${q.english}"</div>` +
+    `<div class="quote-ref">${q.ref}</div>`;
+}
+
+/* ---------------- Nav events ---------------- */
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if(viewMode === 'daily'){
+    selectedDate.setDate(selectedDate.getDate() - 1);
+  } else {
+    weekOffset--; selectedDate.setDate(selectedDate.getDate() - 7);
+  }
+  loadWeek();
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if(viewMode === 'daily'){
+    selectedDate.setDate(selectedDate.getDate() + 1);
+  } else {
+    weekOffset++; selectedDate.setDate(selectedDate.getDate() + 7);
+  }
+  loadWeek();
+});
+document.getElementById('todayBtn').addEventListener('click', () => {
+  if(viewMode === 'daily'){
+    selectedDate = new Date();
+  } else {
+    weekOffset = 0; selectedDate = new Date();
+  }
+  loadWeek();
+});
+document.getElementById('datePicker').addEventListener('change', (e) => {
+  const val = e.target.value;
+  if(!val) return;
+  const [y,m,d] = val.split('-').map(Number);
+  selectedDate = new Date(y, m-1, d);
+  weekOffset = weeksBetween(selectedDate);
+  loadWeek();
+});
+
+if(!configured()){
+  setSyncBadge('local', 'Backend not connected yet — open the file and paste your Apps Script URL');
+}
+</script>
+</body>
+</html>
