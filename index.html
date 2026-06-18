@@ -171,8 +171,12 @@
   }
   .person-panel.userA{border-top:3px solid var(--teal);}
   .person-panel.userB{border-top:3px solid var(--rose);}
-  .person-panel.active-panel.userA{border-color:var(--teal);box-shadow:0 0 0 2px rgba(82,191,152,0.25), var(--shadow);}
-  .person-panel.active-panel.userB{border-color:var(--rose);box-shadow:0 0 0 2px rgba(217,140,140,0.25), var(--shadow);}
+  .person-panel.active-panel.userA,
+  .person-panel.active-panel.userB{
+    border:1.5px dashed var(--gold);
+    border-top-width:3px;
+    box-shadow:0 0 10px rgba(227,183,101,0.18), var(--shadow);
+  }
   .you-badge{
     font-size:9px;font-family:'IBM Plex Mono',monospace;font-weight:700;letter-spacing:.08em;
     text-transform:uppercase;padding:2px 7px;border-radius:999px;margin-left:4px;
