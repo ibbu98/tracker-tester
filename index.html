@@ -660,10 +660,7 @@ async function apiSaveDay(user, date, activities){
   return json;
 }
 
-/* ---------------- Photo API ---------------- */
-// Get a free API key at https://imgbb.com → sign up → API → Add API key
-const IMGBB_KEY = "YOUR_IMGBB_KEY";
-
+/* ---------------- Photo API (Google Drive via chunked GET) ---------------- */
 let photoVisible = true;
 
 function localGetPhotoUrl(user, iso){ try{ return localStorage.getItem(`photo:${user}:${iso}`) || null; }catch(e){ return null; } }
@@ -679,31 +676,11 @@ async function apiGetPhoto(user, date){
   }catch(e){ return null; }
 }
 
-async function apiSavePhotoUrl(user, date, photoUrl){
-  const url = `${API_URL}?action=savePhoto&user=${encodeURIComponent(user)}&date=${date}&photoUrl=${encodeURIComponent(photoUrl)}&key=${API_SECRET}`;
-  const res = await fetch(url);
-  if(!res.ok) throw new Error('Sheet save error');
-  const json = await res.json();
-  if(!json.ok) throw new Error(json.error || 'Save failed');
-}
-
-async function uploadToImgBB(base64){
-  if(!IMGBB_KEY || IMGBB_KEY === 'YOUR_IMGBB_KEY') throw new Error('ImgBB key not set — see setup instructions');
-  const body = new FormData();
-  body.append('key', IMGBB_KEY);
-  body.append('image', base64);
-  const res = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body });
-  if(!res.ok) throw new Error('ImgBB error ' + res.status);
-  const json = await res.json();
-  if(!json.success) throw new Error(json.error?.message || 'ImgBB rejected the image');
-  return json.data.url;
-}
-
 function resizeImage(file, maxPx=1080){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
-    reader.onload = e => {
+    reader.onload = ev => {
       const img = new Image();
       img.onerror = reject;
       img.onload = () => {
@@ -715,20 +692,51 @@ function resizeImage(file, maxPx=1080){
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.88).split(',')[1]);
+        resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
       };
-      img.src = e.target.result;
+      img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   });
 }
 
+async function uploadToDrive(user, date, base64, onProgress){
+  const CHUNK = 7000; // chars per GET request (safe for Apps Script URL limit)
+  const chunks = [];
+  for(let i = 0; i < base64.length; i += CHUNK) chunks.push(base64.slice(i, i + CHUNK));
+  const total   = chunks.length;
+  const session = `${user.replace(/\W/g,'_')}_${date}_${Date.now()}`;
+  let finalUrl  = null;
+
+  for(let i = 0; i < total; i++){
+    onProgress(i + 1, total);
+    const url = `${API_URL}?action=uploadChunk` +
+      `&session=${encodeURIComponent(session)}` +
+      `&index=${i}&total=${total}` +
+      `&user=${encodeURIComponent(user)}&date=${date}` +
+      `&chunk=${encodeURIComponent(chunks[i])}` +
+      `&key=${API_SECRET}`;
+    const res  = await fetch(url);
+    if(!res.ok) throw new Error('Network error on chunk ' + i);
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error || 'Chunk ' + i + ' rejected');
+    if(json.done) finalUrl = json.url;
+  }
+  if(!finalUrl) throw new Error('Upload finished but no URL returned');
+  return finalUrl;
+}
+
 function buildPhotoContent(photoUrl, iso){
   const hasPhoto = !!photoUrl;
+  const driveViewUrl = hasPhoto
+    ? photoUrl.replace('export=view', 'export=view') // keep as-is for Drive thumbnail URLs
+    : null;
   return `
-    ${hasPhoto ? `<div class="photo-img-wrap" id="photoImgWrap" style="display:${photoVisible?'block':'none'}">
-      <img src="${photoUrl}" alt="Photo of the day" loading="lazy">
-    </div>` : `<div class="photo-empty" id="photoEmpty">No photo yet for today</div>`}
+    ${hasPhoto
+      ? `<div class="photo-img-wrap" id="photoImgWrap" style="display:${photoVisible?'block':'none'}">
+           <img src="${photoUrl}" alt="Photo of the day" loading="lazy">
+         </div>`
+      : `<div class="photo-empty" id="photoEmpty">No photo yet for today</div>`}
     <div class="photo-actions">
       <label class="photo-upload-btn">${hasPhoto ? '🔄 Change photo' : '📷 Add a photo'}
         <input type="file" accept="image/*" capture="environment" style="display:none" id="photoInput">
@@ -742,11 +750,11 @@ async function renderPhotoDay(){
   if(viewMode !== 'daily'){ host.innerHTML = ''; return; }
   const iso = formatISO(selectedDate);
 
-  // Show instantly from cache, then try to sync from server
   let photoUrl = localGetPhotoUrl(currentUser, iso);
 
-  const eyeLabel = photoUrl ? (photoVisible ? '👁 Hide' : '👁 Show') : '';
-  const eyeBtn = photoUrl ? `<button class="photo-eye-btn" id="photoEyeBtn">${eyeLabel}</button>` : '';
+  const eyeBtn = photoUrl
+    ? `<button class="photo-eye-btn" id="photoEyeBtn">${photoVisible ? '👁 Hide' : '👁 Show'}</button>`
+    : '';
 
   host.innerHTML = `<div class="photo-day">
     <div class="photo-day-header">
@@ -756,36 +764,32 @@ async function renderPhotoDay(){
     <div id="photoContent">${photoUrl ? buildPhotoContent(photoUrl, iso) : '<div class="photo-status">Loading…</div>'}</div>
   </div>`;
 
-  // Wire eye button immediately
-  wireEyeBtn(iso);
+  wireEyeBtn();
+  wireUploadInput(iso);
 
-  // Fetch from server in background
   if(configured()){
     const serverUrl = await apiGetPhoto(currentUser, iso);
     if(serverUrl && serverUrl !== photoUrl){
       photoUrl = serverUrl;
       localSetPhotoUrl(currentUser, iso, serverUrl);
       const content = document.getElementById('photoContent');
-      const eyeHost = document.querySelector('.photo-day-header');
-      if(content) content.innerHTML = buildPhotoContent(serverUrl, iso);
-      if(eyeHost) eyeHost.querySelector('.photo-eye-btn') || eyeHost.insertAdjacentHTML('beforeend', `<button class="photo-eye-btn" id="photoEyeBtn">${photoVisible?'👁 Hide':'👁 Show'}</button>`);
-      wireEyeBtn(iso);
-    } else if(!serverUrl && !photoUrl){
-      const content = document.getElementById('photoContent');
-      if(content) content.innerHTML = buildPhotoContent(null, iso);
+      if(content){ content.innerHTML = buildPhotoContent(serverUrl, iso); wireUploadInput(iso); }
+      const header = document.querySelector('.photo-day-header');
+      if(header && !header.querySelector('.photo-eye-btn')){
+        header.insertAdjacentHTML('beforeend', `<button class="photo-eye-btn" id="photoEyeBtn">${photoVisible?'👁 Hide':'👁 Show'}</button>`);
+        wireEyeBtn();
+      }
     } else if(!photoUrl){
       const content = document.getElementById('photoContent');
-      if(content) content.innerHTML = buildPhotoContent(null, iso);
+      if(content){ content.innerHTML = buildPhotoContent(null, iso); wireUploadInput(iso); }
     }
   } else if(!photoUrl){
     const content = document.getElementById('photoContent');
-    if(content) content.innerHTML = buildPhotoContent(null, iso);
+    if(content){ content.innerHTML = buildPhotoContent(null, iso); wireUploadInput(iso); }
   }
-
-  wireUploadInput(iso);
 }
 
-function wireEyeBtn(iso){
+function wireEyeBtn(){
   const btn = document.getElementById('photoEyeBtn');
   if(!btn) return;
   btn.addEventListener('click', () => {
@@ -799,22 +803,26 @@ function wireEyeBtn(iso){
 function wireUploadInput(iso){
   const input = document.getElementById('photoInput');
   if(!input) return;
-  input.addEventListener('change', async e => {
-    const file = e.target.files[0];
+  input.addEventListener('change', async ev => {
+    const file = ev.target.files[0];
     if(!file) return;
     const status = document.getElementById('photoStatus');
-    status.textContent = 'Resizing…';
+    // Disable the label while uploading
+    const label = input.closest('label');
+    if(label) label.style.pointerEvents = 'none';
+    status.textContent = 'Resizing image…';
     try{
       const base64 = await resizeImage(file);
-      status.textContent = 'Uploading to image server…';
-      const imgUrl = await uploadToImgBB(base64);
-      status.textContent = 'Saving link…';
+      const totalChunks = Math.ceil(base64.length / 7000);
+      const imgUrl = await uploadToDrive(currentUser, iso, base64, (done, total) => {
+        status.textContent = `Uploading to Drive… ${done}/${total}`;
+      });
       localSetPhotoUrl(currentUser, iso, imgUrl);
-      if(configured()) await apiSavePhotoUrl(currentUser, iso, imgUrl).catch(()=>{});
-      status.textContent = 'Saved ✓';
-      setTimeout(() => { photoVisible = true; renderPhotoDay(); }, 500);
+      status.textContent = '✓ Saved to Google Drive';
+      setTimeout(() => { photoVisible = true; renderPhotoDay(); }, 800);
     }catch(err){
       status.textContent = '⚠ ' + err.message;
+      if(label) label.style.pointerEvents = '';
     }
   });
 }
