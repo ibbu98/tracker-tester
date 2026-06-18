@@ -267,6 +267,14 @@
     font-family:'IBM Plex Mono',monospace;background:var(--rose-light);border-radius:10px;margin-bottom:16px;
   }
 
+  .undo-btn{
+    margin-top:10px;padding:8px 20px;border-radius:999px;
+    border:1.5px solid var(--sky);background:var(--sky-light);
+    color:var(--sky);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
+    cursor:pointer;transition:background .15s ease;
+  }
+  .undo-btn:hover{background:rgba(121,172,222,0.28);}
+  #undoHost{text-align:center;}
   .reset-day-btn{
     margin-top:14px;padding:10px 24px;border-radius:999px;
     border:1.5px solid var(--rose);background:var(--rose-light);
@@ -347,6 +355,7 @@
     </div>
 
     <div id="resetHost"></div>
+    <div id="undoHost"></div>
 
     <div class="duo-stats" id="duoStats"></div>
 
@@ -426,6 +435,7 @@ let weekDataB = {};
 let usingCloud = false;
 let viewMode = 'weekly';
 const apiCache = {};
+let lastAction = null;
 
 document.getElementById('labelA').textContent = USER_A_NAME;
 document.getElementById('labelB').textContent = USER_B_NAME;
@@ -629,9 +639,12 @@ async function toggleActivity(iso, activityId, dayIdx, who){
   if(who !== currentUser) return; // can only edit your own
 
   const set = who === USER_A_NAME ? weekDataA[iso] : weekDataB[iso];
-  if(set.has(activityId)) set.delete(activityId); else set.add(activityId);
+  const wasChecked = set.has(activityId);
+  lastAction = { who, iso, activityId, wasChecked };
+  if(wasChecked) set.delete(activityId); else set.add(activityId);
 
   renderLight();
+  renderUndoBtn();
 
   // ALWAYS use localStorage for now (backend sync has network issues)
   localSet(who, iso, Array.from(set));
@@ -775,10 +788,9 @@ function renderDuoMedallions(){
     </div>`;
   }
 
-  // Only show current user's medallions
-  const cls = currentUser === USER_A_NAME ? 'userA' : 'userB';
-  const dataMap = currentUser === USER_A_NAME ? weekDataA : weekDataB;
-  document.getElementById('duoMedallions').innerHTML = panelHTML(currentUser, dataMap, cls);
+  document.getElementById('duoMedallions').innerHTML =
+    panelHTML(USER_A_NAME, weekDataA, 'userA') +
+    panelHTML(USER_B_NAME, weekDataB, 'userB');
 }
 
 function statsFor(dataMap){
@@ -838,6 +850,25 @@ function renderResetBtn(){
     const iso = formatISO(selectedDate);
     host.innerHTML = `<button class="reset-day-btn" id="resetDayBtn">Reset this day</button>`;
     document.getElementById('resetDayBtn').addEventListener('click', () => resetDay(iso));
+  } else {
+    host.innerHTML = '';
+  }
+}
+
+function renderUndoBtn(){
+  const host = document.getElementById('undoHost');
+  if(lastAction){
+    host.innerHTML = `<button class="undo-btn" id="undoBtn">↩ Undo last toggle</button>`;
+    document.getElementById('undoBtn').addEventListener('click', () => {
+      const { who, iso, activityId, wasChecked } = lastAction;
+      const set = who === USER_A_NAME ? weekDataA[iso] : weekDataB[iso];
+      if(wasChecked) set.add(activityId); else set.delete(activityId);
+      localSet(who, iso, Array.from(set));
+      if(usingCloud) apiSaveDay(who, iso, Array.from(set)).catch(()=>{});
+      lastAction = null;
+      renderLight();
+      renderUndoBtn();
+    });
   } else {
     host.innerHTML = '';
   }
