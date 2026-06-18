@@ -413,6 +413,30 @@ function getActivities(user){
 }
 
 const MAGHRIB_NOTE = 'Al-Waaqiyah · Al-Mulk · As-Sajdah · Al-Muzzammil';
+
+/* =========================================================
+   LABEL HISTORY — fill this in ONLY when you rename an activity.
+   Add the OLD label + the last date it was used (YYYY-MM-DD).
+   Past weeks will then show the old name; current/future show the new one.
+
+   Example: you renamed "Electronics 101 Course" on 2026-06-20, so:
+   "ibrahim_electronics": [{ until: "2026-06-19", label: "Electronics 101 Course" }]
+   ========================================================= */
+const LABEL_HISTORY = {
+  // "ibrahim_electronics": [{ until: "2026-06-17", label: "Old Name Here" }],
+};
+
+function getLabel(actId, dateISO){
+  const history = LABEL_HISTORY[actId];
+  if(history){
+    const sorted = [...history].sort((a,b) => b.until.localeCompare(a.until));
+    for(const entry of sorted){
+      if(dateISO <= entry.until) return entry.label;
+    }
+  }
+  const act = [...ACTIVITIES_IBRAHIM, ...ACTIVITIES_SAMEEHA].find(a => a.id === actId);
+  return act ? act.label : actId;
+}
 const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -726,9 +750,11 @@ function render(){
   thead += '</tr></thead>';
 
   let tbody = '<tbody>';
+  const labelDate = formatISO(dates[0]);
   getActivities(currentUser).forEach(act => {
+    const displayLabel = getLabel(act.id, labelDate);
     tbody += `<tr class="${act.section ? 'section-start':''}" data-act="${act.id}">`;
-    tbody += `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${act.label}</div><div class="act-time">${act.time}</div></div></div></td>`;
+    tbody += `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${displayLabel}</div><div class="act-time">${act.time}</div></div></div></td>`;
     dates.forEach((d,i) => {
       const iso = formatISO(d);
       const disabled = act.fridayOnly && i !== 4;
