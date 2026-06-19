@@ -57,29 +57,45 @@
   .syncbadge .dot.local{background:var(--gold);}
   .syncbadge .dot.err{background:var(--rose);}
 
-  /* ── Name gate ── */
+  /* ── Login gate ── */
   .gate{
-    max-width:420px;margin:60px auto;text-align:center;
+    max-width:400px;margin:60px auto;text-align:center;
     background:var(--surface);border:1px solid var(--line);border-radius:18px;
     padding:36px 28px;box-shadow:var(--shadow);
   }
   .gate h2{font-family:'Lora',serif;font-size:22px;color:var(--ink);margin:0 0 6px;}
   .gate p{color:var(--ink-soft);font-size:13px;margin:0 0 22px;}
-  .gate-btn{
-    display:flex;width:100%;padding:14px 18px;margin-bottom:10px;
-    background:var(--surface-2);border:1px solid var(--line);border-radius:12px;
-    color:var(--ink);font-family:'Inter',sans-serif;font-size:15px;font-weight:600;
-    cursor:pointer;transition:transform .12s,border-color .12s;align-items:center;gap:12px;
-  }
-  .gate-btn:hover{transform:translateY(-1px);border-color:var(--teal);}
   .gate-avatar{
     width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
     font-family:'Lora',serif;font-weight:600;font-size:15px;color:var(--check-mark);flex:0 0 auto;
   }
   .gate-avatar.userA{background:var(--teal);}
   .gate-avatar.userB{background:var(--rose);}
-  .gate-foot{margin-top:18px;font-size:11px;color:var(--ink-soft);}
-  .gate-foot button{background:none;border:none;color:var(--gold);text-decoration:underline;cursor:pointer;font-family:inherit;font-size:11px;padding:0;}
+  .gate-select,.gate-input{
+    width:100%;padding:12px 14px;border-radius:12px;margin-bottom:12px;
+    border:1px solid var(--line);background:var(--surface-2);
+    color:var(--ink);font-family:'Inter',sans-serif;font-size:15px;
+    transition:border-color .15s;display:block;
+  }
+  .gate-select{cursor:pointer;}
+  .gate-select:focus,.gate-input:focus{outline:none;border-color:var(--teal);}
+  .gate-submit{
+    width:100%;padding:13px;border-radius:12px;border:none;
+    background:var(--teal);color:var(--check-mark);
+    font-family:'Inter',sans-serif;font-size:15px;font-weight:700;
+    cursor:pointer;transition:opacity .15s;
+  }
+  .gate-submit:hover{opacity:0.88;}
+  .gate-submit:disabled{opacity:0.5;cursor:default;}
+  .gate-error{color:var(--rose);font-size:12px;margin-top:12px;font-family:'IBM Plex Mono',monospace;min-height:18px;}
+  @keyframes shake{
+    0%,100%{transform:translateX(0);}
+    20%{transform:translateX(-8px);}
+    40%{transform:translateX(8px);}
+    60%{transform:translateX(-5px);}
+    80%{transform:translateX(5px);}
+  }
+  .gate-input.shake{animation:shake .35s ease;}
   .app{display:none;}
   .app.visible{display:block;}
 
@@ -296,38 +312,6 @@
     .duo-stats{grid-template-columns:1fr;}
   }
 
-  /* ── Password Gate ── */
-  .pwd-gate{
-    max-width:380px;margin:80px auto;text-align:center;
-    background:var(--surface);border:1px solid var(--line);border-radius:18px;
-    padding:40px 28px;box-shadow:var(--shadow);
-  }
-  .pwd-gate h2{font-family:'Lora',serif;font-size:22px;color:var(--ink);margin:0 0 6px;}
-  .pwd-gate p{color:var(--ink-soft);font-size:13px;margin:0 0 24px;}
-  .pwd-input{
-    width:100%;padding:13px 16px;border-radius:12px;
-    border:1px solid var(--line);background:var(--surface-2);
-    color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:16px;
-    text-align:center;letter-spacing:.12em;margin-bottom:12px;
-    transition:border-color .15s;
-  }
-  .pwd-input:focus{outline:none;border-color:var(--teal);}
-  .pwd-input.shake{animation:shake .35s ease;}
-  .pwd-btn{
-    width:100%;padding:13px;border-radius:12px;border:none;
-    background:var(--teal);color:var(--check-mark);
-    font-family:'Inter',sans-serif;font-size:15px;font-weight:700;cursor:pointer;
-    transition:opacity .15s;
-  }
-  .pwd-btn:hover{opacity:0.88;}
-  .pwd-error{color:var(--rose);font-size:12px;margin-top:10px;font-family:'IBM Plex Mono',monospace;min-height:18px;}
-  @keyframes shake{
-    0%,100%{transform:translateX(0);}
-    20%{transform:translateX(-8px);}
-    40%{transform:translateX(8px);}
-    60%{transform:translateX(-5px);}
-    80%{transform:translateX(5px);}
-  }
 </style>
 </head>
 <body>
@@ -342,14 +326,6 @@
   </defs>
 </svg>
 
-<div id="pwdGate" class="pwd-gate" style="display:none">
-  <h2>Daily Tracker 🔒</h2>
-  <p>Enter the access password to continue.</p>
-  <input class="pwd-input" type="password" id="pwdInput" placeholder="••••••••" autocomplete="off">
-  <button class="pwd-btn" id="pwdBtn">Unlock</button>
-  <div class="pwd-error" id="pwdError"></div>
-</div>
-
 <div class="wrap">
   <header class="top">
     <div class="eyebrow">Track My Day</div>
@@ -357,12 +333,15 @@
     <div class="syncbadge" id="syncBadge"><span class="dot local"></span> Connecting…</div>
   </header>
 
-  <div class="gate" id="gate">
-    <h2>Who's checking in?</h2>
-    <p>Pick your name to start tracking. You can switch anytime.</p>
-    <button class="gate-btn" id="pickA"><span class="gate-avatar userA">A</span> <span id="labelA">User A</span></button>
-    <button class="gate-btn" id="pickB"><span class="gate-avatar userB">S</span> <span id="labelB">User B</span></button>
-    <div class="gate-foot">First time? <button id="renameLink">Set your two names</button></div>
+  <div class="gate" id="loginGate" style="display:none">
+    <h2>Daily Tracker 🔒</h2>
+    <p>Sign in to access your tracker.</p>
+    <select class="gate-select" id="loginUser">
+      <option value="">Your name…</option>
+    </select>
+    <input class="gate-input" type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
+    <button class="gate-submit" id="loginBtn">Sign in</button>
+    <div class="gate-error" id="loginError"></div>
   </div>
 
   <div class="app" id="app">
@@ -388,7 +367,7 @@
     <div id="resetHost"></div>
     <div id="photoDayHost"></div>
     <div class="duo-stats" id="duoStats"></div>
-    <div class="switchuser-link"><button id="switchUserBtn">Not you? Switch user</button></div>
+    <div class="switchuser-link"><button id="logoutBtn">Sign out</button></div>
   </div>
 </div>
 
@@ -411,11 +390,9 @@
 /* ═══════════════════════════════════════════════
    CONFIG
    ═══════════════════════════════════════════════ */
-const API_URL    = "https://script.google.com/macros/s/AKfycbw3XGr6z7huaQgzHz6B2CMBKxw1pVgDWdH-vg4IKaERPuR-0mcOH60yqQ3l077VyjlI/exec";
-const API_SECRET = "drt-ibs-sam-2026";
+const API_URL     = "https://script.google.com/macros/s/AKfycbw3XGr6z7huaQgzHz6B2CMBKxw1pVgDWdH-vg4IKaERPuR-0mcOH60yqQ3l077VyjlI/exec";
 const USER_A_NAME = "Ibrahim";
 const USER_B_NAME = "Sameeha";
-const APP_PASSWORD = "ibs-sam-2026"; // change this to whatever you want
 
 /* ═══════════════════════════════════════════════
    ACTIVITIES
@@ -519,6 +496,7 @@ let weekOffset   = 0;
 let selectedDate = new Date();
 let todayISO     = formatISO(new Date());
 let currentUser  = null;
+let sessionToken = null;
 let weekDataA    = {};
 let weekDataB    = {};
 let usingCloud   = false;
@@ -535,26 +513,47 @@ function configured(){
   return API_URL && !API_URL.includes('PASTE_YOUR');
 }
 
-async function apiGetWeekBoth(start, end){
-  const url = `${API_URL}?action=getWeekBoth&userA=${encodeURIComponent(USER_A_NAME)}&userB=${encodeURIComponent(USER_B_NAME)}&start=${start}&end=${end}&key=${API_SECRET}`;
+function handleUnauthorized(){
+  sessionStorage.removeItem('tracker:token');
+  sessionStorage.removeItem('tracker:user');
+  sessionToken = null;
+  currentUser  = null;
+  document.getElementById('app').classList.remove('visible');
+  showLoginGate();
+  setSyncBadge('err', 'Session expired — please sign in again');
+}
+
+async function apiLogin(user, password){
+  const url  = `${API_URL}?action=login&user=${encodeURIComponent(user)}&password=${encodeURIComponent(password)}`;
   const res  = await fetch(url);
   if(!res.ok) throw new Error('Network error ' + res.status);
   const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Login failed');
+  return json;
+}
+
+async function apiGetWeekBoth(start, end){
+  const url  = `${API_URL}?action=getWeekBoth&userA=${encodeURIComponent(USER_A_NAME)}&userB=${encodeURIComponent(USER_B_NAME)}&start=${start}&end=${end}&token=${sessionToken}`;
+  const res  = await fetch(url);
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(json.code === 401){ handleUnauthorized(); throw new Error('Session expired'); }
   if(!json.ok) throw new Error(json.error || 'Unknown API error');
   return json.data;
 }
 
 async function apiSaveDay(user, date, activities){
-  const url  = `${API_URL}?action=saveDay&user=${encodeURIComponent(user)}&date=${date}&activities=${encodeURIComponent(JSON.stringify(activities))}&key=${API_SECRET}`;
+  const url  = `${API_URL}?action=saveDay&user=${encodeURIComponent(user)}&date=${date}&activities=${encodeURIComponent(JSON.stringify(activities))}&token=${sessionToken}`;
   const res  = await fetch(url);
   if(!res.ok) throw new Error('Network error ' + res.status);
   const json = await res.json();
+  if(json.code === 401){ handleUnauthorized(); throw new Error('Session expired'); }
   if(!json.ok) throw new Error(json.error || 'Save failed');
   return json;
 }
 
 async function apiDeletePhoto(user, date){
-  const url = `${API_URL}?action=deletePhoto&user=${encodeURIComponent(user)}&date=${date}&key=${API_SECRET}`;
+  const url = `${API_URL}?action=deletePhoto&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
   try{
     const res  = await fetch(url);
     if(!res.ok) return false;
@@ -564,7 +563,7 @@ async function apiDeletePhoto(user, date){
 }
 
 async function apiGetPhoto(user, date){
-  const url = `${API_URL}?action=getPhoto&user=${encodeURIComponent(user)}&date=${date}&key=${API_SECRET}`;
+  const url = `${API_URL}?action=getPhoto&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
   try{
     const res  = await fetch(url);
     if(!res.ok) return null;
@@ -619,7 +618,7 @@ async function uploadToDrive(user, date, base64, onProgress){
   let finalUrl  = null;
 
   async function sendChunk(idx){
-    const url  = `${API_URL}?action=uploadChunk&session=${encodeURIComponent(session)}&index=${idx}&total=${total}&user=${encodeURIComponent(user)}&date=${date}&chunk=${encodeURIComponent(chunks[idx])}&key=${API_SECRET}`;
+    const url  = `${API_URL}?action=uploadChunk&session=${encodeURIComponent(session)}&index=${idx}&total=${total}&user=${encodeURIComponent(user)}&date=${date}&chunk=${encodeURIComponent(chunks[idx])}&token=${sessionToken}`;
     const res  = await fetch(url);
     if(!res.ok) throw new Error(`Server error ${res.status} on chunk ${idx}`);
     const json = await res.json();
@@ -801,58 +800,88 @@ function applicableCount(dIdx, user){
 function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* ═══════════════════════════════════════════════
-   GATE / USER SELECTION
+   LOGIN GATE
    ═══════════════════════════════════════════════ */
-document.getElementById('labelA').textContent = USER_A_NAME;
-document.getElementById('labelB').textContent = USER_B_NAME;
-document.querySelector('#pickA .gate-avatar').textContent = USER_A_NAME[0].toUpperCase();
-document.querySelector('#pickB .gate-avatar').textContent = USER_B_NAME[0].toUpperCase();
+// Populate name options from constants
+;(function(){
+  const sel = document.getElementById('loginUser');
+  [USER_A_NAME, USER_B_NAME].forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = opt.textContent = name;
+    sel.appendChild(opt);
+  });
+})();
 
-document.getElementById('pickA').addEventListener('click', () => selectUser(USER_A_NAME));
-document.getElementById('pickB').addEventListener('click', () => selectUser(USER_B_NAME));
-document.getElementById('switchUserBtn').addEventListener('click', () => {
+function showLoginGate(){
+  document.getElementById('loginGate').style.display = 'block';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginError').textContent = '';
+  setTimeout(() => document.getElementById('loginPassword').focus(), 100);
+}
+
+async function doLogin(){
+  const userEl = document.getElementById('loginUser');
+  const passEl = document.getElementById('loginPassword');
+  const errEl  = document.getElementById('loginError');
+  const btn    = document.getElementById('loginBtn');
+  const user   = userEl.value, pass = passEl.value;
+
+  if(!user){ errEl.textContent = 'Please select your name'; return; }
+  if(!pass){ errEl.textContent = 'Please enter your password'; return; }
+
+  btn.disabled = true; btn.textContent = 'Signing in…'; errEl.textContent = '';
+  try{
+    const result = await apiLogin(user, pass);
+    sessionToken = result.token;
+    sessionStorage.setItem('tracker:token', result.token);
+    sessionStorage.setItem('tracker:user',  result.user);
+    document.getElementById('loginGate').style.display = 'none';
+    selectUser(result.user);
+  }catch(err){
+    errEl.textContent = err.message || 'Login failed';
+    passEl.value = ''; passEl.classList.remove('shake');
+    void passEl.offsetWidth; passEl.classList.add('shake'); passEl.focus();
+  }finally{
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+}
+
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  sessionStorage.removeItem('tracker:token');
+  sessionStorage.removeItem('tracker:user');
+  sessionToken = null; currentUser = null;
   document.getElementById('app').classList.remove('visible');
-  document.getElementById('gate').style.display = 'block';
-});
-document.getElementById('renameLink').addEventListener('click', () => {
-  alert('To set your two names, edit the lines near the top of the <script>:\n\nconst USER_A_NAME = "Ibrahim";\nconst USER_B_NAME = "Sameeha";');
+  showLoginGate();
 });
 
 function selectUser(name){
   currentUser = name;
-  localStorage.setItem('tracker:lastUser', name);
-  document.getElementById('gate').style.display = 'none';
   document.getElementById('app').classList.add('visible');
   renderSwitcher();
   loadWeek();
 }
 
-const remembered = localStorage.getItem('tracker:lastUser');
-if(remembered === USER_A_NAME || remembered === USER_B_NAME) selectUser(remembered);
-
 /* ═══════════════════════════════════════════════
    SWITCHER
    ═══════════════════════════════════════════════ */
 function renderSwitcher(){
-  const names = [USER_A_NAME, USER_B_NAME].sort(a => a === currentUser ? -1 : 1);
-  const usersHtml = names.map(name => {
-    const cls    = name === USER_A_NAME ? 'userA' : 'userB';
-    const active = name === currentUser ? ' active' : '';
-    const tag    = name === currentUser ? '<span class="you-tag">You</span>' : '';
-    return `<button class="switch-btn${active}" data-user="${name}"><span class="gate-avatar ${cls}">${name[0].toUpperCase()}</span>${name} ${tag}</button>`;
-  }).join('');
-
+  const cls      = currentUser === USER_A_NAME ? 'userA' : 'userB';
   const modeHtml = ['daily','weekly'].map(mode =>
     `<button class="mode-btn${viewMode===mode?' active':''}" data-mode="${mode}">${mode==='daily'?'Day':'Weekly'}</button>`
   ).join('');
 
   document.getElementById('switcher').innerHTML =
-    `<div class="switcher-users">${usersHtml}<button class="edit-open-btn" id="editOpenBtn">✏️ Edit my activities</button></div>` +
-    `<div class="switcher-modes">${modeHtml}</div>`;
+    `<div class="switcher-users">
+       <div class="switch-btn active" style="cursor:default">
+         <span class="gate-avatar ${cls}">${currentUser[0].toUpperCase()}</span>
+         ${currentUser} <span class="you-tag">You</span>
+       </div>
+       <button class="edit-open-btn" id="editOpenBtn">✏️ Edit my activities</button>
+     </div>
+     <div class="switcher-modes">${modeHtml}</div>`;
 
-  document.querySelectorAll('.switch-btn').forEach(btn =>
-    btn.addEventListener('click', () => selectUser(btn.dataset.user))
-  );
   document.querySelectorAll('.mode-btn').forEach(btn =>
     btn.addEventListener('click', () => {
       if(viewMode === btn.dataset.mode) return;
@@ -1282,48 +1311,19 @@ document.getElementById('datePicker').addEventListener('change', e => {
 });
 
 /* ═══════════════════════════════════════════════
-   PASSWORD GATE
+   BOOT
    ═══════════════════════════════════════════════ */
-function isAuthed(){
-  return sessionStorage.getItem('tracker:auth') === 'ok';
-}
-
-function launchApp(){
-  document.getElementById('pwdGate').style.display = 'none';
-  document.querySelector('.wrap').style.display    = 'block';
-  const r = localStorage.getItem('tracker:lastUser');
-  if(r === USER_A_NAME || r === USER_B_NAME) selectUser(r);
-  if(!configured()) setSyncBadge('local', 'Backend not connected — paste your Apps Script URL');
-}
-
-function submitPassword(){
-  const input = document.getElementById('pwdInput');
-  if(input.value === APP_PASSWORD){
-    sessionStorage.setItem('tracker:auth', 'ok');
-    launchApp();
+;(function(){
+  const tok  = sessionStorage.getItem('tracker:token');
+  const user = sessionStorage.getItem('tracker:user');
+  if(tok && user && configured()){
+    sessionToken = tok;
+    selectUser(user);
   } else {
-    document.getElementById('pwdError').textContent = 'Wrong password — try again';
-    input.value = '';
-    input.classList.remove('shake');
-    void input.offsetWidth;
-    input.classList.add('shake');
-    input.focus();
+    showLoginGate();
+    if(!configured()) setSyncBadge('local', 'Backend not connected — paste your Apps Script URL');
   }
-}
-
-document.getElementById('pwdBtn').addEventListener('click', submitPassword);
-document.getElementById('pwdInput').addEventListener('keydown', e => {
-  if(e.key === 'Enter') submitPassword();
-});
-
-// Boot
-if(isAuthed()){
-  launchApp();
-} else {
-  document.querySelector('.wrap').style.display = 'none';
-  document.getElementById('pwdGate').style.display = 'block';
-  setTimeout(() => document.getElementById('pwdInput').focus(), 100);
-}
+})();
 </script>
 </body>
 </html>
