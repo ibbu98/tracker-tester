@@ -409,7 +409,8 @@ const ACTIVITIES_IBRAHIM = [
   { id:'ibrahim_maghrib',     label:'After-Maghrib Recitation',time:'Maghrib',     cat:'worship', icon:'🌇' },
   { id:'ibrahim_thaleem',     label:'Thaleem',                 time:'Isha',        cat:'worship', icon:'👥' },
   { id:'ibrahim_masterclass', label:'Masterclass Course',      time:'Evening',     cat:'study',   icon:'🎓', section:true },
-  { id:'ibrahim_kahf',        label:'Surah Al-Kahf + Salawat', time:'Friday',      cat:'friday',  icon:'✨', fridayOnly:true, section:true },
+  { id:'ibrahim_kahf',            label:'Surah Al-Kahf + Salawat', time:'Friday',       cat:'friday',  icon:'✨', fridayOnly:true, section:true },
+  { id:'ibrahim_salah_shukriya', label:'Salah Shukriya',          time:'1st of Month', cat:'worship', icon:'🌸', monthDay1Only:true },
 ];
 
 const ACTIVITIES_SAMEEHA = [
@@ -422,7 +423,8 @@ const ACTIVITIES_SAMEEHA = [
   { id:'sameeha_adhkar_pm', label:'Evening Adhkar',          time:'Asr',         cat:'worship', icon:'📿', section:true },
   { id:'sameeha_maghrib',   label:'After-Maghrib Recitation',time:'Maghrib',     cat:'worship', icon:'🌇' },
   { id:'sameeha_thaleem',   label:'Thaleem',                 time:'Isha',        cat:'worship', icon:'👥' },
-  { id:'sameeha_kahf',      label:'Surah Al-Kahf + Salawat', time:'Friday',      cat:'friday',  icon:'✨', fridayOnly:true, section:true },
+  { id:'sameeha_kahf',          label:'Surah Al-Kahf + Salawat', time:'Friday',       cat:'friday',  icon:'✨', fridayOnly:true, section:true },
+  { id:'sameeha_salah_shukriya', label:'Salah Shukriya',         time:'1st of Month', cat:'worship', icon:'🌸', monthDay1Only:true },
 ];
 
 function getActivities(user){
@@ -439,14 +441,14 @@ function getActivities(user){
    ═══════════════════════════════════════════════ */
 const LABEL_HISTORY = {};
 
-function getLabel(actId, dateISO){
+function getLabel(actId, dateISO, fallback){
   const history = LABEL_HISTORY[actId];
   if(history){
     const sorted = [...history].sort((a,b) => b.until.localeCompare(a.until));
     for(const e of sorted){ if(dateISO <= e.until) return e.label; }
   }
   const act = [...ACTIVITIES_IBRAHIM, ...ACTIVITIES_SAMEEHA].find(a => a.id === actId);
-  return act ? act.label : actId;
+  return act ? act.label : (fallback || actId);
 }
 
 /* ═══════════════════════════════════════════════
@@ -794,8 +796,12 @@ function getWeekDates(){
   return Array.from({length:7}, (_, i) => { const d = new Date(base); d.setDate(base.getDate() + i); return d; });
 }
 function dayIdx(d){ return (d.getDay() + 6) % 7; } // Mon=0 … Sun=6
-function applicableCount(dIdx, user){
-  return getActivities(user).filter(a => !a.fridayOnly || dIdx === 4).length;
+function applicableCount(dIdx, user, date){
+  return getActivities(user).filter(a => {
+    if(a.fridayOnly && dIdx !== 4) return false;
+    if(a.monthDay1Only && (!date || date.getDate() !== 1)) return false;
+    return true;
+  }).length;
 }
 function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -1034,6 +1040,7 @@ async function loadWeek(){
 async function toggleActivity(iso, activityId, dIdx, who){
   const act = getActivities(who).find(a => a.id === activityId);
   if(!act || (act.fridayOnly && dIdx !== 4)) return;
+  if(act.monthDay1Only && parseInt(iso.split('-')[2]) !== 1) return;
   if(who !== currentUser) return;
 
   const set = who === USER_A_NAME ? weekDataA[iso] : weekDataB[iso];
@@ -1094,7 +1101,7 @@ function render(){
   const labelDate = formatISO(dates[0]);
   let tbody = '<tbody>';
   getActivities(currentUser).forEach(act => {
-    const label = getLabel(act.id, labelDate);
+    const label = getLabel(act.id, labelDate, act.label);
     tbody += `<tr class="${act.section?'section-start':''}" data-act="${act.id}">`;
 
     let noteHtml = '';
@@ -1112,7 +1119,7 @@ function render(){
     dates.forEach(d => {
       const iso      = formatISO(d);
       const di       = dayIdx(d);
-      const disabled = act.fridayOnly && di !== 4;
+      const disabled = (act.fridayOnly && di !== 4) || (act.monthDay1Only && d.getDate() !== 1);
       let cell = '';
       if(disabled){
         cell = `<div class="toggle-pair"><button class="toggle disabled" disabled></button></div>`;
@@ -1170,7 +1177,7 @@ function renderDuoMedallions(){
     const inner    = dates.map((d, i) => {
       const iso  = formatISO(d);
       const set  = dataMap[iso] || new Set();
-      const pct  = applicableCount(i, name) ? Math.round(set.size / applicableCount(i, name) * 100) : 0;
+      const pct  = applicableCount(i, name, d) ? Math.round(set.size / applicableCount(i, name, d) * 100) : 0;
       const dash = (pct / 100) * circ;
       return `<div class="medal${iso===todayISO?' today':''}">
         <div class="dayname">${DAY_NAMES[i]}</div>
@@ -1201,6 +1208,7 @@ function renderDuoStats(){
     dates.forEach((d, i) =>
       getActivities(user).forEach(act => {
         if(act.fridayOnly && i !== 4) return;
+        if(act.monthDay1Only && d.getDate() !== 1) return;
         total++;
         if((dataMap[formatISO(d)] || new Set()).has(act.id)) done++;
       })
