@@ -271,7 +271,7 @@
   .photo-remove-btn:disabled{opacity:0.5;cursor:default;}
   .photo-empty{color:var(--ink-soft);font-size:13px;margin-bottom:12px;text-align:center;}
   .photo-status{font-size:11px;color:var(--ink-soft);margin-top:8px;font-family:'IBM Plex Mono',monospace;min-height:16px;text-align:center;}
-  @media(max-width:480px){.photo-day img{max-height:280px;}.photo-upload-btn{width:100%;text-align:center;}}
+  /* photo breakpoint folded into main mobile block below */
 
   /* ── Undo / Reset ── */
   .undo-btn{
@@ -307,9 +307,85 @@
   .switchuser-link{text-align:center;margin-top:18px;}
   .switchuser-link button{background:none;border:none;color:var(--ink-soft);text-decoration:underline;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;}
 
+  /* ── Mobile ──────────────────────────────── */
   @media(max-width:680px){
     .duo-medallions{grid-template-columns:1fr;}
     .duo-stats{grid-template-columns:1fr;}
+  }
+  @media(max-width:520px){
+    body{padding:14px 10px 80px;}
+    header.top{margin-bottom:14px;}
+
+    /* Quote */
+    .quote-card{padding:14px 16px;margin-bottom:16px;}
+    .quote-arabic{font-size:16px;}
+    .quote-english{font-size:12px;}
+
+    /* Week nav */
+    .weeknav{gap:8px;margin-bottom:12px;}
+    .weekrange-wrap{padding:6px 10px;}
+    .weekrange{font-size:11px;}
+    #datePicker{width:80px;font-size:10px;}
+    .todaybtn{font-size:11px;padding:6px 10px;}
+    .navbtn{width:32px;height:32px;font-size:14px;}
+
+    /* Switcher */
+    .switcher{gap:8px;margin-bottom:14px;}
+    .mode-btn{font-size:12px;padding:7px 12px;}
+    .switch-btn{font-size:12px;padding:7px 12px 7px 8px;}
+    .edit-open-btn{font-size:11px;}
+
+    /* Medallions — compact rings */
+    .duo-medallions{gap:10px;margin-bottom:16px;}
+    .person-panel{padding:10px 6px 8px;}
+    .person-title{font-size:12px;gap:6px;margin-bottom:8px;}
+    .medallions{gap:2px;}
+    .medal .dayname{font-size:8.5px;}
+    .ringwrap,.ringwrap svg{width:30px;height:30px;}
+    .ringwrap .pct{font-size:7.5px;}
+    .medal.today .ringwrap::after{inset:-2px;}
+
+    /* Table — smooth touch scroll */
+    .scrollx{-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;}
+
+    /* Daily view: no horizontal scroll, full-width */
+    #tableHost.daily table{min-width:0;width:100%;}
+    #tableHost.daily td.activity{min-width:0;}
+    #tableHost.daily td{padding:9px 8px;}
+    #tableHost.daily .act-label{font-size:13px;}
+
+    /* Weekly view: compact activity column */
+    #tableHost:not(.daily) td.activity{min-width:150px;}
+    #tableHost:not(.daily) .act-icon{width:24px;height:24px;font-size:12px;border-radius:7px;}
+    #tableHost:not(.daily) .act-row{gap:7px;}
+    #tableHost:not(.daily) .act-label{font-size:12px;}
+    #tableHost:not(.daily) .act-time{font-size:10px;}
+    #tableHost:not(.daily) td{padding:8px 4px;}
+
+    /* Bigger touch targets on checkboxes */
+    .toggle{width:36px;height:36px;font-size:15px;}
+
+    /* Edit modal: slide up from bottom */
+    .modal-overlay{padding:0;align-items:flex-end;}
+    .edit-modal{border-radius:18px 18px 0 0;max-width:100%;max-height:88vh;padding:18px 12px 28px;}
+    .edit-row{grid-template-columns:36px 1fr 62px 62px 28px;gap:4px;}
+    .edit-col-headers{grid-template-columns:36px 1fr 62px 62px 28px;gap:4px;}
+    .edit-row input,.edit-cat-sel{font-size:11.5px;padding:6px 6px;}
+
+    /* Photo */
+    .photo-day{padding:12px;}
+    .photo-day img{max-height:260px;}
+    .photo-upload-btn,.photo-remove-btn{width:100%;text-align:center;box-sizing:border-box;}
+    .photo-actions{flex-direction:column;gap:8px;}
+
+    /* Stats */
+    .duo-stats{gap:10px;margin-top:12px;}
+    .statcard{padding:12px 6px;}
+    .statcard .big{font-size:20px;}
+
+    /* Logout */
+    .switchuser-link{margin-top:18px;}
+    .switchuser-link button{font-size:12px;min-height:40px;}
   }
 
 </style>
@@ -1135,7 +1211,7 @@ function render(){
   tbody += '</tbody>';
 
   const host = document.getElementById('tableHost');
-  host.className = '';
+  host.className = viewMode === 'daily' ? 'daily' : '';
   host.innerHTML = `<table>${thead}${tbody}</table>`;
 
   host.querySelectorAll('.toggle:not(.disabled)').forEach(btn =>
