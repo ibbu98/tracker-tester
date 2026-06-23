@@ -324,7 +324,8 @@
 
   /* ── Daily mode — note spans full row width ── */
   #tableHost.daily table{min-width:0;width:100%;}
-  #tableHost.daily td.activity{width:100%;min-width:0;position:static;}
+  #tableHost.daily td.activity{width:100%;min-width:0;position:static;padding-left:12px;}
+  #tableHost.daily td:last-child{padding-right:12px;}
   #tableHost.daily .act-daily-row{width:100%;}
   #tableHost.daily .act-note{height:42px;min-height:unset;max-height:unset;width:100%;resize:none;}
 
@@ -563,6 +564,17 @@ function timeToMins(t){
   return m ? parseInt(m[1])*60 + parseInt(m[2]) : 9998;
 }
 function sortActivitiesByTime(acts){ return [...acts].sort((a,b) => timeToMins(a.time) - timeToMins(b.time)); }
+
+const BUILTIN_CATS = ['worship','study','friday','other'];
+function getCustomCats(){ try{ return JSON.parse(localStorage.getItem('custom_categories')||'[]'); }catch{ return []; } }
+function saveCustomCat(slug){ const c=getCustomCats(); if(!c.includes(slug)){ c.push(slug); localStorage.setItem('custom_categories',JSON.stringify(c)); } }
+function catCSSClass(cat){ return BUILTIN_CATS.includes(cat) ? cat : 'other'; }
+function buildCatOptions(currentCat){
+  const all = [...BUILTIN_CATS, ...getCustomCats()];
+  if(currentCat && !all.includes(currentCat)) all.splice(BUILTIN_CATS.length, 0, currentCat);
+  return all.map(c=>`<option value="${c}"${c===currentCat?' selected':''}>${c.charAt(0).toUpperCase()+c.slice(1)}</option>`).join('')
+    + `<option value="__new__">+ Add new…</option>`;
+}
 
 const DAILY_QUOTES = [
   { arabic:'إِنَّ مَعَ الْعُسْرِ يُسْرًا', english:'Indeed, with hardship comes ease.', ref:'Quran 94:6' },
@@ -1021,12 +1033,7 @@ function renderEditRows(acts){
       <input class="edit-icon-inp" type="text" value="${act.icon}" maxlength="2" placeholder="🌙">
       <input type="text" value="${escapeHtml(act.label)}" placeholder="Activity name">
       <input type="text" value="${escapeHtml(act.time)}" placeholder="Time">
-      <select class="edit-cat-sel">
-        <option value="worship"${act.cat==='worship'?' selected':''}>Worship</option>
-        <option value="study"${act.cat==='study'?' selected':''}>Study</option>
-        <option value="friday"${act.cat==='friday'?' selected':''}>Friday</option>
-        <option value="other"${act.cat==='other'?' selected':''}>Other</option>
-      </select>
+      <select class="edit-cat-sel">${buildCatOptions(act.cat)}</select>
       <button class="edit-del-btn" data-idx="${idx}">✕</button>
     </div>`).join('');
 
@@ -1037,6 +1044,21 @@ function renderEditRows(acts){
       renderEditRows(a);
     })
   );
+
+  document.querySelectorAll('.edit-cat-sel').forEach(sel => {
+    sel.addEventListener('change', function(){
+      if(this.value !== '__new__') return;
+      const name = prompt('New category name:');
+      if(name && name.trim()){
+        const slug = name.trim().toLowerCase().replace(/\s+/g,'_');
+        saveCustomCat(slug);
+        this.innerHTML = buildCatOptions(slug);
+      } else {
+        this.innerHTML = buildCatOptions(this.dataset.prev || 'worship');
+      }
+    });
+    sel.addEventListener('mousedown', function(){ this.dataset.prev = this.value; });
+  });
 }
 
 function getCurrentEditedActivities(){
@@ -1228,12 +1250,12 @@ function render(){
       const iso  = formatISO(dates[0]);
       const note = localGetNote(currentUser, iso, act.id);
       const noteTA = `<textarea class="act-note" data-iso="${iso}" data-actid="${act.id}" placeholder="📝 Add a note…">${escapeHtml(note)}</textarea>`;
-      actCell = `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${label}</div><div class="act-daily-row"><span class="act-time-badge">${act.time}</span>${noteTA}</div></div></div></td>`;
+      actCell = `<td class="activity"><div class="act-row"><div class="act-icon ${catCSSClass(act.cat)}">${act.icon}</div><div class="act-text"><div class="act-label">${label}</div><div class="act-daily-row"><span class="act-time-badge">${act.time}</span>${noteTA}</div></div></div></td>`;
     } else {
       let noteDot = '';
       if(dates.some(d => localGetNote(currentUser, formatISO(d), act.id)))
         noteDot = `<span class="note-dot" title="Notes added this week">💬</span>`;
-      actCell = `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${label}</div><div class="act-time">${act.time}</div>${noteDot}</div></div></td>`;
+      actCell = `<td class="activity"><div class="act-row"><div class="act-icon ${catCSSClass(act.cat)}">${act.icon}</div><div class="act-text"><div class="act-label">${label}</div><div class="act-time">${act.time}</div>${noteDot}</div></div></td>`;
     }
     tbody += actCell;
 
@@ -1246,7 +1268,7 @@ function render(){
         cell = `<div class="toggle-pair"><button class="toggle disabled" disabled></button></div>`;
       } else {
         const checked = (currentUser === USER_A_NAME ? weekDataA : weekDataB)[iso]?.has(act.id);
-        cell = `<div class="toggle-pair"><button class="toggle ${act.cat}${checked?' checked':''}" data-iso="${iso}" data-id="${act.id}" data-day="${di}" data-who="${currentUser}">${checked?'✓':''}</button></div>`;
+        cell = `<div class="toggle-pair"><button class="toggle ${catCSSClass(act.cat)}${checked?' checked':''}" data-iso="${iso}" data-id="${act.id}" data-day="${di}" data-who="${currentUser}">${checked?'✓':''}</button></div>`;
       }
       if(act.id === 'ibrahim_maghrib') cell += `<span class="maghrib-note">${MAGHRIB_NOTE}</span>`;
       tbody += `<td>${cell}</td>`;
