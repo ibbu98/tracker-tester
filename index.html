@@ -252,7 +252,12 @@
   .edit-icon-inp{text-align:center;font-size:18px;padding:4px!important;}
   .edit-cat-sel{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--ink-soft);font-size:12px;padding:7px 4px;cursor:pointer;}
   .edit-del-btn{background:var(--rose-light);border:1px solid var(--rose);border-radius:8px;color:var(--rose);font-size:14px;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;}
-  .edit-add-btn{width:100%;padding:10px;border-radius:10px;border:1.5px dashed var(--teal);background:transparent;color:var(--teal);font-size:13px;font-weight:600;cursor:pointer;margin:8px 0 18px;}
+  .edit-add-btn{width:100%;padding:10px;border-radius:10px;border:1.5px dashed var(--teal);background:transparent;color:var(--teal);font-size:13px;font-weight:600;cursor:pointer;margin:8px 0 12px;}
+  .custom-cat-section{margin-bottom:14px;padding:10px 12px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:10px;}
+  .custom-cat-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;margin-bottom:8px;}
+  .custom-cat-chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .custom-cat-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px 3px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .custom-cat-chip button{background:none;border:none;color:var(--rose);cursor:pointer;font-size:13px;line-height:1;padding:0;display:flex;align-items:center;}
   .edit-actions{display:flex;gap:10px;justify-content:flex-end;}
   .edit-save-btn{padding:10px 24px;border-radius:999px;border:none;background:var(--teal);color:var(--check-mark);font-size:13px;font-weight:700;cursor:pointer;}
   .edit-cancel-btn{padding:10px 24px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer;}
@@ -491,6 +496,10 @@
     </div>
     <div id="editRows"></div>
     <button class="edit-add-btn" id="editAddBtn">+ Add activity</button>
+    <div class="custom-cat-section" id="customCatSection" style="display:none">
+      <div class="custom-cat-label">Custom categories</div>
+      <div class="custom-cat-chips" id="customCatChips"></div>
+    </div>
     <div class="edit-actions">
       <button class="edit-reset-btn" id="editResetBtn">↺ Reset to defaults</button>
       <button class="edit-cancel-btn" id="editCancelBtn">Cancel</button>
@@ -1056,9 +1065,29 @@ function renderSwitcher(){
 /* ═══════════════════════════════════════════════
    EDIT ACTIVITIES MODAL
    ═══════════════════════════════════════════════ */
+function renderCustomCatChips(){
+  const cats = getCustomCats();
+  const section = document.getElementById('customCatSection');
+  const chipsEl = document.getElementById('customCatChips');
+  if(!cats.length){ section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  chipsEl.innerHTML = cats.map(c =>
+    `<span class="custom-cat-chip">${c.charAt(0).toUpperCase()+c.slice(1).replace(/_/g,' ')}
+       <button data-cat="${c}" title="Delete category">✕</button>
+     </span>`
+  ).join('');
+  chipsEl.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+    const saved = getCustomCats().filter(c => c !== btn.dataset.cat);
+    localStorage.setItem('custom_categories', JSON.stringify(saved));
+    renderCustomCatChips();
+    renderEditRows(getCurrentEditedActivities());
+  }));
+}
+
 function openEditModal(){
   document.getElementById('editModalTitle').textContent = `Edit ${currentUser}'s Activities`;
   renderEditRows(getActivities(currentUser));
+  renderCustomCatChips();
   document.getElementById('editModalOverlay').classList.remove('hidden');
 }
 
@@ -1121,6 +1150,7 @@ function renderEditRows(acts){
         const slug = name.trim().toLowerCase().replace(/\s+/g,'_');
         saveCustomCat(slug);
         this.innerHTML = buildCatOptions(slug);
+        renderCustomCatChips();
       } else {
         this.innerHTML = buildCatOptions(this.dataset.prev || 'worship');
       }
