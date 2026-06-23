@@ -28,6 +28,8 @@
     --line:#2D363A;
     --shadow:0 1px 2px rgba(0,0,0,0.35),0 6px 20px rgba(0,0,0,0.4);
     --check-mark:#12171A;
+    --lavender:#A78BFA;
+    --lavender-light:rgba(167,139,250,0.14);
   }
   *{box-sizing:border-box;}
   body{
@@ -200,20 +202,30 @@
   .act-icon.worship{background:var(--teal-light);}
   .act-icon.study{background:var(--sky-light);}
   .act-icon.friday{background:var(--gold-light);}
+  .act-icon.other{background:var(--lavender-light);}
   .act-text .act-label{font-size:13.5px;font-weight:600;line-height:1.25;}
   .act-text .act-time{font-size:11px;color:var(--ink-soft);}
+  .act-time-badge{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;
+    color:var(--gold);background:var(--gold-light);border-radius:999px;
+    padding:3px 9px;letter-spacing:.04em;white-space:nowrap;flex-shrink:0;margin-top:3px;
+  }
+  .act-daily-row{display:flex;align-items:flex-start;gap:8px;margin-top:6px;}
+  .act-daily-row .act-note{flex:1;margin-top:0;}
   .toggle-pair{display:flex;gap:6px;justify-content:center;align-items:center;}
   .toggle{
-    width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);background:transparent;
+    width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:transparent;
     cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
-    transition:background .15s,border-color .15s,transform .1s;
+    transition:background .15s,border-color .15s,transform .1s,box-shadow .15s;
     color:transparent;font-size:13px;
   }
-  .toggle:active{transform:scale(0.9);}
-  .toggle.worship.checked{background:var(--teal);border-color:var(--teal);color:var(--check-mark);}
-  .toggle.study.checked{background:var(--sky);border-color:var(--sky);color:var(--check-mark);}
-  .toggle.friday.checked{background:var(--gold);border-color:var(--gold);color:var(--check-mark);}
-  .toggle.disabled{border-color:var(--line);background:repeating-linear-gradient(45deg,var(--bg) 0 4px,var(--surface) 4px 8px);cursor:default;}
+  .toggle:hover:not(.disabled){border-color:var(--ink-soft);box-shadow:0 0 0 3px rgba(255,255,255,0.06);}
+  .toggle:active{transform:scale(0.88);}
+  .toggle.worship.checked{background:var(--teal);border-color:var(--teal);color:var(--check-mark);box-shadow:0 0 0 3px rgba(82,191,152,0.25);}
+  .toggle.study.checked{background:var(--sky);border-color:var(--sky);color:var(--check-mark);box-shadow:0 0 0 3px rgba(121,172,222,0.25);}
+  .toggle.friday.checked{background:var(--gold);border-color:var(--gold);color:var(--check-mark);box-shadow:0 0 0 3px rgba(227,183,101,0.25);}
+  .toggle.other.checked{background:var(--lavender);border-color:var(--lavender);color:var(--check-mark);box-shadow:0 0 0 3px rgba(167,139,250,0.25);}
+  .toggle.disabled{border-color:var(--line);background:repeating-linear-gradient(45deg,var(--bg) 0 4px,var(--surface) 4px 8px);cursor:default;box-shadow:none;}
   .maghrib-note{font-size:9px;color:var(--ink-soft);display:block;margin-top:4px;font-family:'IBM Plex Mono',monospace;}
 
   /* ── Stats ── */
@@ -473,33 +485,35 @@ const USER_B_NAME = "Sameeha";
    ACTIVITIES
    ═══════════════════════════════════════════════ */
 const ACTIVITIES_IBRAHIM = [
-  { id:'ibrahim_tahajjud',    label:'Tahajjud',                time:'Before Fajr', cat:'worship', icon:'🌙' },
-  { id:'ibrahim_quran',       label:"Holy Qur'an (Tilawah)",   time:'Fajr',        cat:'worship', icon:'📖' },
-  { id:'ibrahim_yaseen',      label:'Surah Yaseen',            time:'Fajr',        cat:'worship', icon:'🕊️' },
-  { id:'ibrahim_adhkar_am',   label:'Morning Adhkar',          time:'Fajr',        cat:'worship', icon:'📿' },
-  { id:'ibrahim_electronics', label:'Electronics 101 Course',  time:'Morning',     cat:'study',   icon:'⚡' },
-  { id:'ibrahim_signal',      label:'Signal Integrity (Book)', time:'Morning',     cat:'study',   icon:'📡', section:true },
-  { id:'ibrahim_independent', label:'Independent Study',       time:'Midday',      cat:'study',   icon:'✏️' },
-  { id:'ibrahim_adhkar_pm',   label:'Evening Adhkar',          time:'Asr',         cat:'worship', icon:'📿', section:true },
-  { id:'ibrahim_maghrib',     label:'After-Maghrib Recitation',time:'Maghrib',     cat:'worship', icon:'🌇' },
-  { id:'ibrahim_thaleem',     label:'Thaleem',                 time:'Isha',        cat:'worship', icon:'👥' },
-  { id:'ibrahim_masterclass', label:'Masterclass Course',      time:'Evening',     cat:'study',   icon:'🎓', section:true },
-  { id:'ibrahim_kahf',            label:'Surah Al-Kahf + Salawat', time:'Friday',       cat:'friday',  icon:'✨', fridayOnly:true, section:true },
-  { id:'ibrahim_salah_shukriya', label:'Salah Shukriya',          time:'1st of Month', cat:'worship', icon:'🌸', monthDay1Only:true },
+  { id:'ibrahim_tahajjud',       label:'Tahajjud',                time:'04:00', cat:'worship', icon:'🌙' },
+  { id:'ibrahim_quran',          label:"Holy Qur'an (Tilawah)",   time:'05:30', cat:'worship', icon:'📖' },
+  { id:'ibrahim_yaseen',         label:'Surah Yaseen',            time:'05:30', cat:'worship', icon:'🕊️' },
+  { id:'ibrahim_adhkar_am',      label:'Morning Adhkar',          time:'05:30', cat:'worship', icon:'📿' },
+  { id:'ibrahim_electronics',    label:'Electronics 101 Course',  time:'08:00', cat:'study',   icon:'⚡' },
+  { id:'ibrahim_signal',         label:'Signal Integrity (Book)', time:'09:00', cat:'study',   icon:'📡', section:true },
+  { id:'ibrahim_independent',    label:'Independent Study',       time:'12:00', cat:'study',   icon:'✏️' },
+  { id:'ibrahim_adhkar_pm',      label:'Evening Adhkar',          time:'15:30', cat:'worship', icon:'📿', section:true },
+  { id:'ibrahim_maghrib',        label:'After-Maghrib Recitation',time:'18:30', cat:'worship', icon:'🌇' },
+  { id:'ibrahim_thaleem',        label:'Thaleem',                 time:'20:00', cat:'worship', icon:'👥' },
+  { id:'ibrahim_bayan',          label:'Bayan',                   time:'20:30', cat:'worship', icon:'🎙️' },
+  { id:'ibrahim_masterclass',    label:'Masterclass Course',      time:'21:00', cat:'study',   icon:'🎓', section:true },
+  { id:'ibrahim_kahf',           label:'Surah Al-Kahf + Salawat', time:'13:00', cat:'friday',  icon:'✨', fridayOnly:true, section:true },
+  { id:'ibrahim_salah_shukriya', label:'Salah Shukriya',          time:'09:00', cat:'worship', icon:'🌸', monthDay1Only:true },
 ];
 
 const ACTIVITIES_SAMEEHA = [
-  { id:'sameeha_tahajjud',  label:'Tahajjud',                time:'Before Fajr', cat:'worship', icon:'🌙' },
-  { id:'sameeha_quran',     label:"Holy Qur'an (Tilawah)",   time:'Fajr',        cat:'worship', icon:'📖' },
-  { id:'sameeha_yaseen',    label:'Surah Yaseen',            time:'Fajr',        cat:'worship', icon:'🕊️' },
-  { id:'sameeha_adhkar_am', label:'Morning Adhkar',          time:'Fajr',        cat:'worship', icon:'📿' },
-  { id:'sameeha_study_1',   label:'My Study Activity 1',     time:'Morning',     cat:'study',   icon:'📚' },
-  { id:'sameeha_study_2',   label:'My Study Activity 2',     time:'Morning',     cat:'study',   icon:'✏️', section:true },
-  { id:'sameeha_adhkar_pm', label:'Evening Adhkar',          time:'Asr',         cat:'worship', icon:'📿', section:true },
-  { id:'sameeha_maghrib',   label:'After-Maghrib Recitation',time:'Maghrib',     cat:'worship', icon:'🌇' },
-  { id:'sameeha_thaleem',   label:'Thaleem',                 time:'Isha',        cat:'worship', icon:'👥' },
-  { id:'sameeha_kahf',          label:'Surah Al-Kahf + Salawat', time:'Friday',       cat:'friday',  icon:'✨', fridayOnly:true, section:true },
-  { id:'sameeha_salah_shukriya', label:'Salah Shukriya',         time:'1st of Month', cat:'worship', icon:'🌸', monthDay1Only:true },
+  { id:'sameeha_tahajjud',       label:'Tahajjud',                time:'04:00', cat:'worship', icon:'🌙' },
+  { id:'sameeha_quran',          label:"Holy Qur'an (Tilawah)",   time:'05:30', cat:'worship', icon:'📖' },
+  { id:'sameeha_yaseen',         label:'Surah Yaseen',            time:'05:30', cat:'worship', icon:'🕊️' },
+  { id:'sameeha_adhkar_am',      label:'Morning Adhkar',          time:'05:30', cat:'worship', icon:'📿' },
+  { id:'sameeha_study_1',        label:'My Study Activity 1',     time:'08:00', cat:'study',   icon:'📚' },
+  { id:'sameeha_study_2',        label:'My Study Activity 2',     time:'09:00', cat:'study',   icon:'✏️', section:true },
+  { id:'sameeha_adhkar_pm',      label:'Evening Adhkar',          time:'15:30', cat:'worship', icon:'📿', section:true },
+  { id:'sameeha_maghrib',        label:'After-Maghrib Recitation',time:'18:30', cat:'worship', icon:'🌇' },
+  { id:'sameeha_thaleem',        label:'Thaleem',                 time:'20:00', cat:'worship', icon:'👥' },
+  { id:'sameeha_bayan',          label:'Bayan',                   time:'20:30', cat:'worship', icon:'🎙️' },
+  { id:'sameeha_kahf',           label:'Surah Al-Kahf + Salawat', time:'13:00', cat:'friday',  icon:'✨', fridayOnly:true, section:true },
+  { id:'sameeha_salah_shukriya', label:'Salah Shukriya',          time:'09:00', cat:'worship', icon:'🌸', monthDay1Only:true },
 ];
 
 function getActivities(user){
@@ -533,9 +547,12 @@ const DAY_NAMES   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const MAGHRIB_NOTE = 'Al-Waaqiyah · Al-Mulk · As-Sajdah · Al-Muzzammil';
 
-const TIME_ORDER = ['Before Fajr','Fajr','Morning','Midday','Asr','Maghrib','Isha','Evening','Night','Friday','1st of Month'];
-function timeOrderIndex(t){ const i = TIME_ORDER.indexOf(t); return i === -1 ? 998 : i; }
-function sortActivitiesByTime(acts){ return [...acts].sort((a,b) => timeOrderIndex(a.time) - timeOrderIndex(b.time)); }
+function timeToMins(t){
+  if(!t) return 9999;
+  const m = t.match(/^(\d{1,2}):(\d{2})/);
+  return m ? parseInt(m[1])*60 + parseInt(m[2]) : 9998;
+}
+function sortActivitiesByTime(acts){ return [...acts].sort((a,b) => timeToMins(a.time) - timeToMins(b.time)); }
 
 const DAILY_QUOTES = [
   { arabic:'إِنَّ مَعَ الْعُسْرِ يُسْرًا', english:'Indeed, with hardship comes ease.', ref:'Quran 94:6' },
@@ -998,6 +1015,7 @@ function renderEditRows(acts){
         <option value="worship"${act.cat==='worship'?' selected':''}>Worship</option>
         <option value="study"${act.cat==='study'?' selected':''}>Study</option>
         <option value="friday"${act.cat==='friday'?' selected':''}>Friday</option>
+        <option value="other"${act.cat==='other'?' selected':''}>Other</option>
       </select>
       <button class="edit-del-btn" data-idx="${idx}">✕</button>
     </div>`).join('');
@@ -1189,17 +1207,19 @@ function render(){
     const label = getLabel(act.id, labelDate, act.label);
     tbody += `<tr class="${act.section?'section-start':''}" data-act="${act.id}">`;
 
-    let noteHtml = '';
+    let actCell = '';
     if(viewMode === 'daily'){
       const iso  = formatISO(dates[0]);
       const note = localGetNote(currentUser, iso, act.id);
-      noteHtml   = `<div class="act-note-area"><textarea class="act-note" data-iso="${iso}" data-actid="${act.id}" placeholder="Add a note…">${escapeHtml(note)}</textarea></div>`;
+      const noteTA = `<textarea class="act-note" data-iso="${iso}" data-actid="${act.id}" placeholder="📝 Add a note…">${escapeHtml(note)}</textarea>`;
+      actCell = `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${label}</div><div class="act-daily-row"><span class="act-time-badge">${act.time}</span>${noteTA}</div></div></div></td>`;
     } else {
+      let noteDot = '';
       if(dates.some(d => localGetNote(currentUser, formatISO(d), act.id)))
-        noteHtml = `<span class="note-dot" title="Notes added this week">💬</span>`;
+        noteDot = `<span class="note-dot" title="Notes added this week">💬</span>`;
+      actCell = `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${label}</div><div class="act-time">${act.time}</div>${noteDot}</div></div></td>`;
     }
-
-    tbody += `<td class="activity"><div class="act-row"><div class="act-icon ${act.cat}">${act.icon}</div><div class="act-text"><div class="act-label">${label}</div><div class="act-time">${act.time}</div>${noteHtml}</div></div></td>`;
+    tbody += actCell;
 
     dates.forEach(d => {
       const iso      = formatISO(d);
