@@ -211,11 +211,11 @@
     color:var(--gold);background:var(--gold-light);border-radius:999px;
     padding:3px 9px;letter-spacing:.04em;white-space:nowrap;flex-shrink:0;margin-top:3px;
   }
-  .act-daily-row{display:flex;align-items:flex-start;gap:8px;margin-top:6px;}
+  .act-daily-row{display:flex;align-items:center;gap:8px;margin-top:6px;}
   .act-daily-row .act-note{flex:1;margin-top:0;}
   .toggle-pair{display:flex;gap:6px;justify-content:center;align-items:center;}
   .toggle{
-    width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,0.22);background:transparent;
+    width:30px;height:30px;border-radius:50%;border:2px dotted rgba(255,255,255,0.45);background:transparent;
     cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
     transition:background .15s,border-color .15s,transform .1s,box-shadow .15s;
     color:transparent;font-size:13px;box-shadow:0 0 0 3px rgba(255,255,255,0.04);
@@ -326,7 +326,7 @@
   #tableHost.daily table{min-width:0;width:100%;}
   #tableHost.daily td.activity{width:100%;min-width:0;position:static;}
   #tableHost.daily .act-daily-row{width:100%;}
-  #tableHost.daily .act-note{min-height:42px;width:100%;}
+  #tableHost.daily .act-note{height:42px;min-height:unset;max-height:unset;width:100%;resize:none;}
 
   /* ── Mobile ──────────────────────────────── */
   @media(max-width:680px){
