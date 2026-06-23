@@ -515,6 +515,7 @@
 const API_URL      = "https://script.google.com/macros/s/AKfycbzswHXj006I7-VIh5Kw0OZobEPtwanygQ0ccMQJdNgRF8VSCgcn9855IZ6TFcAgiddISg/exec";
 const START_DATE   = '2026-06-24'; // no tracking before this date
 const IS_TESTER    = true;
+const LS_NS        = IS_TESTER ? 'tst:' : '';
 const USER_A_NAME  = "Ibrahim";
 const USER_B_NAME = "Sameeha";
 
@@ -555,7 +556,7 @@ const ACTIVITIES_SAMEEHA = [
 
 function getActivities(user){
   try{
-    const s = localStorage.getItem(`custom_activities:${user}`);
+    const s = localStorage.getItem(`${LS_NS}custom_activities:${user}`);
     if(s) return JSON.parse(s);
   }catch(e){}
   return user === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
@@ -592,8 +593,8 @@ function timeToMins(t){
 function sortActivitiesByTime(acts){ return [...acts].sort((a,b) => timeToMins(a.time) - timeToMins(b.time)); }
 
 const BUILTIN_CATS = ['worship','study','friday','other'];
-function getCustomCats(){ try{ return JSON.parse(localStorage.getItem('custom_categories')||'[]'); }catch{ return []; } }
-function saveCustomCat(slug){ const c=getCustomCats(); if(!c.includes(slug)){ c.push(slug); localStorage.setItem('custom_categories',JSON.stringify(c)); } }
+function getCustomCats(){ try{ return JSON.parse(localStorage.getItem(`${LS_NS}custom_categories`)||'[]'); }catch{ return []; } }
+function saveCustomCat(slug){ const c=getCustomCats(); if(!c.includes(slug)){ c.push(slug); localStorage.setItem(`${LS_NS}custom_categories`,JSON.stringify(c)); } }
 function catCSSClass(cat){ return BUILTIN_CATS.includes(cat) ? cat : 'other'; }
 function buildCatOptions(currentCat){
   const all = [...BUILTIN_CATS, ...getCustomCats()];
@@ -743,11 +744,11 @@ async function apiGetPhoto(user, date){
 /* ═══════════════════════════════════════════════
    PHOTO — resize + chunked upload
    ═══════════════════════════════════════════════ */
-function localGetPhotoUrl(user, iso){ try{ return localStorage.getItem(`photo:${user}:${iso}`) || null; }catch(e){ return null; } }
+function localGetPhotoUrl(user, iso){ try{ return localStorage.getItem(`${LS_NS}photo:${user}:${iso}`) || null; }catch(e){ return null; } }
 function localSetPhotoUrl(user, iso, url){
   try{
-    if(url) localStorage.setItem(`photo:${user}:${iso}`, url);
-    else localStorage.removeItem(`photo:${user}:${iso}`);
+    if(url) localStorage.setItem(`${LS_NS}photo:${user}:${iso}`, url);
+    else localStorage.removeItem(`${LS_NS}photo:${user}:${iso}`);
   }catch(e){}
 }
 
@@ -924,19 +925,19 @@ function wireUploadInput(iso){
    LOCAL STORAGE
    ═══════════════════════════════════════════════ */
 function localGet(user, iso){
-  try{ const v = localStorage.getItem(`tracker:${user}:${iso}`); return v ? JSON.parse(v) : []; }
+  try{ const v = localStorage.getItem(`${LS_NS}tracker:${user}:${iso}`); return v ? JSON.parse(v) : []; }
   catch(e){ return []; }
 }
 function localSet(user, iso, arr){
-  try{ localStorage.setItem(`tracker:${user}:${iso}`, JSON.stringify(arr)); }catch(e){}
+  try{ localStorage.setItem(`${LS_NS}tracker:${user}:${iso}`, JSON.stringify(arr)); }catch(e){}
 }
 function localGetNote(user, iso, actId){
-  try{ return localStorage.getItem(`anote:${user}:${iso}:${actId}`) || ''; }catch(e){ return ''; }
+  try{ return localStorage.getItem(`${LS_NS}anote:${user}:${iso}:${actId}`) || ''; }catch(e){ return ''; }
 }
 function localSetNote(user, iso, actId, text){
   try{
-    if(text) localStorage.setItem(`anote:${user}:${iso}:${actId}`, text);
-    else localStorage.removeItem(`anote:${user}:${iso}:${actId}`);
+    if(text) localStorage.setItem(`${LS_NS}anote:${user}:${iso}:${actId}`, text);
+    else localStorage.removeItem(`${LS_NS}anote:${user}:${iso}:${actId}`);
   }catch(e){}
 }
 
@@ -1078,7 +1079,7 @@ function renderCustomCatChips(){
   ).join('');
   chipsEl.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
     const saved = getCustomCats().filter(c => c !== btn.dataset.cat);
-    localStorage.setItem('custom_categories', JSON.stringify(saved));
+    localStorage.setItem(`${LS_NS}custom_categories`, JSON.stringify(saved));
     renderCustomCatChips();
     renderEditRows(getCurrentEditedActivities());
   }));
@@ -1202,13 +1203,13 @@ document.getElementById('editAddBtn').addEventListener('click', () => {
 });
 document.getElementById('editSaveBtn').addEventListener('click', () => {
   const sorted = sortActivitiesByTime(getCurrentEditedActivities());
-  localStorage.setItem(`custom_activities:${currentUser}`, JSON.stringify(sorted));
+  localStorage.setItem(`${LS_NS}custom_activities:${currentUser}`, JSON.stringify(sorted));
   document.getElementById('editModalOverlay').classList.add('hidden');
   render();
 });
 document.getElementById('editResetBtn').addEventListener('click', () => {
   if(!confirm('Reset to default activities? Your custom list will be cleared.')) return;
-  localStorage.removeItem(`custom_activities:${currentUser}`);
+  localStorage.removeItem(`${LS_NS}custom_activities:${currentUser}`);
   const defaults = currentUser === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
   renderEditRows(defaults);
 });
