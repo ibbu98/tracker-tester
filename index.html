@@ -214,12 +214,12 @@
   .act-daily-row .act-note{flex:1;margin-top:0;}
   .toggle-pair{display:flex;gap:6px;justify-content:center;align-items:center;}
   .toggle{
-    width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:transparent;
+    width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,0.22);background:transparent;
     cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
     transition:background .15s,border-color .15s,transform .1s,box-shadow .15s;
-    color:transparent;font-size:13px;
+    color:transparent;font-size:13px;box-shadow:0 0 0 3px rgba(255,255,255,0.04);
   }
-  .toggle:hover:not(.disabled){border-color:var(--ink-soft);box-shadow:0 0 0 3px rgba(255,255,255,0.06);}
+  .toggle:hover:not(.disabled){border-color:rgba(255,255,255,0.45);box-shadow:0 0 0 4px rgba(255,255,255,0.08);}
   .toggle:active{transform:scale(0.88);}
   .toggle.worship.checked{background:var(--teal);border-color:var(--teal);color:var(--check-mark);box-shadow:0 0 0 3px rgba(82,191,152,0.25);}
   .toggle.study.checked{background:var(--sky);border-color:var(--sky);color:var(--check-mark);box-shadow:0 0 0 3px rgba(121,172,222,0.25);}
@@ -255,6 +255,8 @@
   .edit-cancel-btn{padding:10px 24px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer;}
   .edit-open-btn{font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;font-family:'IBM Plex Mono',monospace;letter-spacing:.04em;}
   .edit-open-btn:hover{border-color:var(--teal);color:var(--teal);}
+  .edit-reset-btn{padding:10px 16px;border-radius:999px;border:1px solid var(--rose);background:transparent;color:var(--rose);font-size:12px;font-weight:600;cursor:pointer;font-family:'IBM Plex Mono',monospace;margin-right:auto;}
+  .edit-reset-btn:hover{background:var(--rose-light);}
   .edit-col-headers{display:grid;grid-template-columns:42px 1fr 100px 80px 32px;gap:6px;font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;padding:0 2px;}
 
   /* ── Photo of the Day ── */
@@ -318,6 +320,12 @@
 
   .switchuser-link{text-align:center;margin-top:18px;}
   .switchuser-link button{background:none;border:none;color:var(--ink-soft);text-decoration:underline;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;}
+
+  /* ── Daily mode — note spans full row width ── */
+  #tableHost.daily table{min-width:0;width:100%;}
+  #tableHost.daily td.activity{width:100%;min-width:0;position:static;}
+  #tableHost.daily .act-daily-row{width:100%;}
+  #tableHost.daily .act-note{min-height:42px;width:100%;}
 
   /* ── Mobile ──────────────────────────────── */
   @media(max-width:680px){
@@ -467,6 +475,7 @@
     <div id="editRows"></div>
     <button class="edit-add-btn" id="editAddBtn">+ Add activity</button>
     <div class="edit-actions">
+      <button class="edit-reset-btn" id="editResetBtn">↺ Reset to defaults</button>
       <button class="edit-cancel-btn" id="editCancelBtn">Cancel</button>
       <button class="edit-save-btn" id="editSaveBtn">Save</button>
     </div>
@@ -1061,6 +1070,12 @@ document.getElementById('editSaveBtn').addEventListener('click', () => {
   localStorage.setItem(`custom_activities:${currentUser}`, JSON.stringify(sorted));
   document.getElementById('editModalOverlay').classList.add('hidden');
   render();
+});
+document.getElementById('editResetBtn').addEventListener('click', () => {
+  if(!confirm('Reset to default activities? Your custom list will be cleared.')) return;
+  localStorage.removeItem(`custom_activities:${currentUser}`);
+  const defaults = currentUser === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
+  renderEditRows(defaults);
 });
 document.getElementById('editCancelBtn').addEventListener('click', () =>
   document.getElementById('editModalOverlay').classList.add('hidden')
