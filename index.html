@@ -505,7 +505,7 @@
       <h1>Daily Tracker</h1>
       <div class="syncbadge" id="syncBadge"><span class="dot local"></span> Connecting…</div>
     </header>
-    <div class="sticky-note" id="stickyNote">
+    <div class="sticky-note" id="stickyNote" style="display:none">
       <div class="sticky-note-head">
         <span class="sticky-note-label">Today's Plan</span>
         <span class="sticky-note-date-lbl" id="stickyNoteDateLbl"></span>
@@ -1086,6 +1086,7 @@ function showLoginGate(){
   document.getElementById('loginGate').style.display = 'block';
   document.getElementById('loginPassword').value = '';
   document.getElementById('loginError').textContent = '';
+  document.getElementById('stickyNote').style.display = 'none';
   setTimeout(() => document.getElementById('loginPassword').focus(), 100);
 }
 
@@ -1129,9 +1130,10 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 function selectUser(name){
   currentUser = name;
   document.getElementById('app').classList.add('visible');
+  document.getElementById('stickyNote').style.display = 'flex';
   renderSwitcher();
   loadWeek();
-  loadStickyFromBackend(name);
+  loadStickyFromBackend(name, formatISO(selectedDate));
 }
 
 /* ═══════════════════════════════════════════════
@@ -1431,6 +1433,7 @@ function getDisplayDates(){
 }
 
 function render(){
+  if(window.updateStickyDate) window.updateStickyDate(formatISO(selectedDate));
   const dates    = getDisplayDates();
   const rangeStr = viewMode === 'daily'
     ? `${DAY_NAMES[dayIdx(dates[0])]} ${MONTH_NAMES[dates[0].getMonth()]} ${dates[0].getDate()}, ${dates[0].getFullYear()}`
@@ -1682,35 +1685,53 @@ if(IS_TESTER) document.getElementById('testerBanner').style.display = 'flex';
 
 /* ── Sticky note (daily plan) ────────────────────────────────────────────── */
 (function(){
-  function todayIso(){
-    const d = new Date();
-    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  }
-  const iso     = todayIso();
   const body    = document.getElementById('stickyNoteBody');
   const dateLbl = document.getElementById('stickyNoteDateLbl');
   const savedEl = document.getElementById('stickyNoteSaved');
-  if(dateLbl) dateLbl.textContent = iso;
   if(!body) return;
 
-  function localKey(){ return `${LS_NS}plan:${iso}`; }
+  let currentIso = null;
+  let saveTimer  = null;
+
+  function localKey(iso){ return `${LS_NS}plan:${iso}`; }
   function flashSaved(){ if(savedEl){ savedEl.classList.add('show'); setTimeout(()=>savedEl.classList.remove('show'), 1500); } }
   function updateEmpty(){ body.classList.toggle('empty', body.innerText.trim() === ''); }
+  function setContent(html){ body.innerHTML = html || ''; updateEmpty(); }
 
-  function setContent(html){
-    body.innerHTML = html || '';
-    updateEmpty();
+  async function flushSave(){
+    clearTimeout(saveTimer);
+    if(!currentIso || !currentUser) return;
+    const html = body.innerHTML;
+    try{ if(body.innerText.trim()) localStorage.setItem(localKey(currentIso), html); else localStorage.removeItem(localKey(currentIso)); }catch(e){}
+    await apiSaveNote(currentUser, currentIso, html);
   }
 
-  // Load from localStorage immediately
-  try{ setContent(localStorage.getItem(localKey()) || ''); }catch(e){}
+  // Called by render() on every date change
+  window.updateStickyDate = async function(iso){
+    if(iso === currentIso) return;
+    await flushSave();
+    currentIso = iso;
+    if(dateLbl) dateLbl.textContent = iso;
+    // Show from localStorage first, then fetch backend
+    try{ setContent(localStorage.getItem(localKey(iso)) || ''); }catch(e){}
+    if(typeof currentUser !== 'undefined' && currentUser){
+      const note = await apiGetNote(currentUser, iso);
+      if(note !== null){
+        setContent(note);
+        try{ if(note.trim()) localStorage.setItem(localKey(iso), note); else localStorage.removeItem(localKey(iso)); }catch(e){}
+      }
+    }
+  };
 
   // Called by selectUser after login
-  window.loadStickyFromBackend = async function(user){
+  window.loadStickyFromBackend = async function(user, iso){
+    currentIso = iso;
+    if(dateLbl) dateLbl.textContent = iso;
+    try{ setContent(localStorage.getItem(localKey(iso)) || ''); }catch(e){}
     const note = await apiGetNote(user, iso);
     if(note !== null){
       setContent(note);
-      try{ if(note.trim()) localStorage.setItem(localKey(), note); else localStorage.removeItem(localKey()); }catch(e){}
+      try{ if(note.trim()) localStorage.setItem(localKey(iso), note); else localStorage.removeItem(localKey(iso)); }catch(e){}
     }
   };
 
@@ -1723,7 +1744,6 @@ if(IS_TESTER) document.getElementById('testerBanner').style.display = 'flex';
     });
   });
 
-  // Font family
   const snFont = document.getElementById('snFont');
   if(snFont) snFont.addEventListener('change', function(){
     document.execCommand('styleWithCSS', false, true);
@@ -1731,22 +1751,20 @@ if(IS_TESTER) document.getElementById('testerBanner').style.display = 'flex';
     body.focus();
   });
 
-  // Font size
   const snSize = document.getElementById('snSize');
   if(snSize) snSize.addEventListener('change', function(){
     document.execCommand('fontSize', false, this.value);
     body.focus();
   });
 
-  // Save on input
-  let saveTimer = null;
   body.addEventListener('input', ()=>{
     updateEmpty();
     clearTimeout(saveTimer);
     const html = body.innerHTML;
-    try{ if(body.innerText.trim()) localStorage.setItem(localKey(), html); else localStorage.removeItem(localKey()); }catch(e){}
+    const iso  = currentIso;
+    try{ if(body.innerText.trim()) localStorage.setItem(localKey(iso), html); else localStorage.removeItem(localKey(iso)); }catch(e){}
     saveTimer = setTimeout(async ()=>{
-      if(typeof currentUser !== 'undefined' && currentUser){
+      if(iso && typeof currentUser !== 'undefined' && currentUser){
         await apiSaveNote(currentUser, iso, html);
         flashSaved();
       }
