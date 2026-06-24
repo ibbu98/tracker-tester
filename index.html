@@ -747,6 +747,7 @@ const DAILY_QUOTES = [
    ═══════════════════════════════════════════════ */
 let weekOffset   = 0;
 let selectedDate = new Date();
+const saveDebounce = {};
 let todayISO     = formatISO(new Date());
 let currentUser  = null;
 let sessionToken = null;
@@ -1063,6 +1064,11 @@ function getWeekDates(){
   base.setDate(base.getDate() + weekOffset * 7);
   return Array.from({length:7}, (_, i) => { const d = new Date(base); d.setDate(base.getDate() + i); return d; });
 }
+function getWeekDatesForOffset(off){
+  const base = startOfWeek(new Date());
+  base.setDate(base.getDate() + off * 7);
+  return Array.from({length:7}, (_, i) => { const d = new Date(base); d.setDate(base.getDate() + i); return d; });
+}
 function dayIdx(d){ return (d.getDay() + 6) % 7; } // Mon=0 … Sun=6
 function applicableCount(dIdx, user, date){
   return getActivities(user).filter(a => actApplies(a, date || new Date())).length;
@@ -1332,63 +1338,80 @@ function setSyncBadge(kind, text){
   document.getElementById('syncBadge').innerHTML = `<span class="dot ${kind}"></span> ${text}`;
 }
 
+function applyWeekData(dates, data){
+  dates.forEach(d => {
+    const iso = formatISO(d);
+    weekDataA[iso] = new Set((data[USER_A_NAME]?.[iso]) || []);
+    weekDataB[iso] = new Set((data[USER_B_NAME]?.[iso]) || []);
+    localSet(USER_A_NAME, iso, [...weekDataA[iso]]);
+    localSet(USER_B_NAME, iso, [...weekDataB[iso]]);
+  });
+}
+
+async function prefetchAdjacent(){
+  for(const off of [weekOffset - 1, weekOffset + 1]){
+    const ds    = getWeekDatesForOffset(off);
+    const key   = `${formatISO(ds[0])}:${formatISO(ds[6])}`;
+    if(apiCache[key] && Date.now() - apiCache[key].time < 60000) continue;
+    try{
+      const data = await apiGetWeekBoth(formatISO(ds[0]), formatISO(ds[6]));
+      apiCache[key] = { data, time: Date.now() };
+    }catch(e){}
+  }
+}
+
 async function loadWeek(){
-  document.getElementById('tableHost').innerHTML = '<div class="loading">Loading…</div>';
-  document.getElementById('tableHost').className = 'loading';
-  document.getElementById('errorHost').innerHTML  = '';
+  const dates    = getWeekDates();
+  const start    = formatISO(dates[0]), end = formatISO(dates[6]);
+  const cacheKey = `${start}:${end}`;
 
-  const dates = getWeekDates();
-  const start = formatISO(dates[0]), end = formatISO(dates[6]);
+  document.getElementById('errorHost').innerHTML = '';
 
+  // ── Step 1: Render instantly from localStorage ───────────────────────────
   weekDataA = {}; weekDataB = {};
-  dates.forEach(d => { weekDataA[formatISO(d)] = new Set(); weekDataB[formatISO(d)] = new Set(); });
+  dates.forEach(d => {
+    const iso = formatISO(d);
+    weekDataA[iso] = new Set(localGet(USER_A_NAME, iso));
+    weekDataB[iso] = new Set(localGet(USER_B_NAME, iso));
+  });
 
-  if(configured()){
-    const cacheKey = `${start}:${end}`;
-    const hit      = apiCache[cacheKey];
-    let data       = null;
-
-    if(hit && (Date.now() - hit.time) < 60000){
-      data = hit.data; usingCloud = true;
-      setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
-    } else {
-      try{
-        data = await apiGetWeekBoth(start, end);
-        apiCache[cacheKey] = { data, time: Date.now() };
-        usingCloud = true;
-        setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
-      }catch(err){
-        usingCloud = false;
-        setSyncBadge('err', 'Could not reach sheet — showing local data');
-        dates.forEach(d => {
-          const iso = formatISO(d);
-          weekDataA[iso] = new Set(localGet(USER_A_NAME, iso));
-          weekDataB[iso] = new Set(localGet(USER_B_NAME, iso));
-        });
-        render(); return;
-      }
-    }
-
-    if(data){
-      dates.forEach(d => {
-        const iso = formatISO(d);
-        weekDataA[iso] = new Set((data[USER_A_NAME]?.[iso]) || []);
-        weekDataB[iso] = new Set((data[USER_B_NAME]?.[iso]) || []);
-        localSet(USER_A_NAME, iso, [...weekDataA[iso]]);
-        localSet(USER_B_NAME, iso, [...weekDataB[iso]]);
-      });
-    }
-  } else {
+  if(!configured()){
     usingCloud = false;
     setSyncBadge('local', 'Backend not connected — saving locally only');
-    dates.forEach(d => {
-      const iso = formatISO(d);
-      weekDataA[iso] = new Set(localGet(USER_A_NAME, iso));
-      weekDataB[iso] = new Set(localGet(USER_B_NAME, iso));
-    });
+    render(); return;
   }
 
-  render();
+  // ── Step 2: If cache hit, render immediately — no loading spinner ─────────
+  const hit = apiCache[cacheKey];
+  if(hit){
+    applyWeekData(dates, hit.data);
+    usingCloud = true;
+    setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
+    render();
+    if(Date.now() - hit.time < 60000){ prefetchAdjacent(); return; }
+    // Cache stale: refresh silently in background (no spinner)
+  } else {
+    document.getElementById('tableHost').innerHTML = '<div class="loading">Loading…</div>';
+    document.getElementById('tableHost').className = 'loading';
+  }
+
+  // ── Step 3: Fetch from API (first load or silent refresh) ─────────────────
+  try{
+    const data = await apiGetWeekBoth(start, end);
+    apiCache[cacheKey] = { data, time: Date.now() };
+    usingCloud = true;
+    setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
+    applyWeekData(dates, data);
+    render();
+    prefetchAdjacent();
+  }catch(err){
+    if(!hit){
+      usingCloud = false;
+      setSyncBadge('err', 'Could not reach sheet — showing local data');
+      render();
+    }
+    // If we had a cache hit, keep showing it — don't re-render with error
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -1412,16 +1435,28 @@ async function toggleActivity(iso, activityId, dIdx, who){
   localSet(who, iso, [...set]);
 
   if(usingCloud){
-    setSyncBadge('local', 'Saving…');
-    try{
-      await apiSaveDay(who, iso, [...set]);
-      Object.keys(apiCache).forEach(k => delete apiCache[k]);
-      setSyncBadge('cloud', `Saved ✓ — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
-      setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
-    }catch(err){
-      setSyncBadge('err', 'Save failed: ' + err.message);
-      usingCloud = false;
-    }
+    const debKey  = `${who}:${iso}`;
+    const snapshot = [...set];
+    clearTimeout(saveDebounce[debKey]);
+    saveDebounce[debKey] = setTimeout(async () => {
+      setSyncBadge('local', 'Saving…');
+      try{
+        await apiSaveDay(who, iso, snapshot);
+        // Update only this date in cache — don't wipe everything
+        const dates    = getWeekDates();
+        const cacheKey = `${formatISO(dates[0])}:${formatISO(dates[6])}`;
+        if(apiCache[cacheKey]){
+          if(!apiCache[cacheKey].data[who]) apiCache[cacheKey].data[who] = {};
+          apiCache[cacheKey].data[who][iso] = snapshot;
+          apiCache[cacheKey].time = Date.now();
+        }
+        setSyncBadge('cloud', `Saved ✓ — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
+        setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
+      }catch(err){
+        setSyncBadge('err', 'Save failed: ' + err.message);
+        usingCloud = false;
+      }
+    }, 300);
   }
 }
 
@@ -1709,7 +1744,7 @@ if(IS_TESTER) document.getElementById('testerBanner').style.display = 'flex';
   // Called by render() on every date change
   window.updateStickyDate = async function(iso){
     if(iso === currentIso) return;
-    await flushSave();
+    flushSave(); // fire-and-forget — don't block navigation
     currentIso = iso;
     if(dateLbl) dateLbl.textContent = iso;
     // Show from localStorage first, then fetch backend
@@ -1768,7 +1803,7 @@ if(IS_TESTER) document.getElementById('testerBanner').style.display = 'flex';
         await apiSaveNote(currentUser, iso, html);
         flashSaved();
       }
-    }, 800);
+    }, 400);
   });
 })();
 
