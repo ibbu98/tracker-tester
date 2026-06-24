@@ -361,36 +361,43 @@
     display:flex;flex-direction:column;gap:8px;
     min-height:160px;
   }
-  .sticky-note-head{
-    display:flex;align-items:center;gap:6px;
-  }
+  .sticky-note-head{display:flex;align-items:center;gap:6px;}
   .sticky-note-label{
     font-family:'IBM Plex Mono',monospace;font-size:10px;
     text-transform:uppercase;letter-spacing:.12em;color:var(--gold);font-weight:600;flex:1;
   }
-  .sticky-note-date-lbl{
-    font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);
-  }
-  .sticky-note-saved{
-    font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--teal);
-    opacity:0;transition:opacity .3s;
-  }
+  .sticky-note-date-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);}
+  .sticky-note-saved{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--teal);opacity:0;transition:opacity .3s;}
   .sticky-note-saved.show{opacity:1;}
-  .sticky-note-body{
-    flex:1;
-    background:transparent;
-    border:none;
-    outline:none;
-    color:var(--ink);
-    font-family:'Inter',sans-serif;
-    font-size:13px;
-    line-height:1.65;
-    resize:none;
-    min-height:120px;
-    width:100%;
-    caret-color:var(--gold);
+  .sn-toolbar{
+    display:flex;align-items:center;gap:3px;
+    padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.07);
+    flex-wrap:wrap;
   }
-  .sticky-note-body::placeholder{color:rgba(255,255,255,0.18);font-size:12.5px;line-height:1.6;}
+  .sn-btn{
+    background:transparent;border:1px solid transparent;border-radius:5px;
+    color:var(--ink-soft);width:26px;height:24px;font-size:12px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:background .12s,border-color .12s,color .12s;
+    padding:0;
+  }
+  .sn-btn:hover,.sn-btn.active{background:rgba(255,255,255,0.08);border-color:var(--line);color:var(--ink);}
+  .sn-div{width:1px;height:16px;background:var(--line);margin:0 2px;flex-shrink:0;}
+  .sn-sel{
+    background:var(--surface-2);border:1px solid var(--line);border-radius:5px;
+    color:var(--ink-soft);font-size:10.5px;padding:2px 3px;cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;max-width:80px;
+  }
+  .sn-sel:focus{outline:none;border-color:var(--gold);}
+  .sticky-note-body{
+    flex:1;background:transparent;border:none;outline:none;
+    color:var(--ink);font-family:'Inter',sans-serif;font-size:13px;
+    line-height:1.65;min-height:100px;width:100%;caret-color:var(--gold);
+    overflow-y:auto;word-break:break-word;
+  }
+  .sticky-note-body.empty::before{
+    content:attr(data-ph);color:rgba(255,255,255,0.18);font-size:12.5px;
+    pointer-events:none;display:block;
+  }
 
   /* ── Mobile ──────────────────────────────── */
   @media(max-width:760px){
@@ -504,7 +511,26 @@
         <span class="sticky-note-date-lbl" id="stickyNoteDateLbl"></span>
         <span class="sticky-note-saved" id="stickyNoteSaved">Saved</span>
       </div>
-      <textarea class="sticky-note-body" id="stickyNoteBody" placeholder="Jot down your goals, reminders, or rough plan for the day…"></textarea>
+      <div class="sn-toolbar">
+        <button class="sn-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+        <button class="sn-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+        <button class="sn-btn" data-cmd="underline" title="Underline"><u>U</u></button>
+        <span class="sn-div"></span>
+        <select class="sn-sel" id="snFont" title="Font">
+          <option value="Inter">Inter</option>
+          <option value="Lora">Lora</option>
+          <option value="IBM Plex Mono">Mono</option>
+        </select>
+        <select class="sn-sel" id="snSize" title="Size">
+          <option value="1">10</option>
+          <option value="2">13</option>
+          <option value="3" selected>16</option>
+          <option value="4">18</option>
+          <option value="5">24</option>
+          <option value="6">32</option>
+        </select>
+      </div>
+      <div class="sticky-note-body empty" id="stickyNoteBody" contenteditable="true" data-ph="Jot down your goals, reminders, or rough plan for the day…"></div>
     </div>
   </div>
 
@@ -1660,37 +1686,68 @@ if(IS_TESTER) document.getElementById('testerBanner').style.display = 'flex';
     const d = new Date();
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
-  const iso = todayIso();
-  const ta      = document.getElementById('stickyNoteBody');
+  const iso     = todayIso();
+  const body    = document.getElementById('stickyNoteBody');
   const dateLbl = document.getElementById('stickyNoteDateLbl');
   const savedEl = document.getElementById('stickyNoteSaved');
   if(dateLbl) dateLbl.textContent = iso;
+  if(!body) return;
 
   function localKey(){ return `${LS_NS}plan:${iso}`; }
   function flashSaved(){ if(savedEl){ savedEl.classList.add('show'); setTimeout(()=>savedEl.classList.remove('show'), 1500); } }
+  function updateEmpty(){ body.classList.toggle('empty', body.innerText.trim() === ''); }
 
-  // Load from localStorage immediately so there's no blank delay
-  if(ta){ try{ ta.value = localStorage.getItem(localKey()) || ''; }catch(e){} }
+  function setContent(html){
+    body.innerHTML = html || '';
+    updateEmpty();
+  }
+
+  // Load from localStorage immediately
+  try{ setContent(localStorage.getItem(localKey()) || ''); }catch(e){}
 
   // Called by selectUser after login
   window.loadStickyFromBackend = async function(user){
-    if(!ta) return;
     const note = await apiGetNote(user, iso);
     if(note !== null){
-      ta.value = note;
+      setContent(note);
       try{ if(note.trim()) localStorage.setItem(localKey(), note); else localStorage.removeItem(localKey()); }catch(e){}
     }
   };
 
-  if(!ta) return;
+  // Toolbar: bold / italic / underline
+  document.querySelectorAll('.sn-btn[data-cmd]').forEach(btn => {
+    btn.addEventListener('mousedown', e => {
+      e.preventDefault();
+      document.execCommand(btn.dataset.cmd, false, null);
+      body.focus();
+    });
+  });
+
+  // Font family
+  const snFont = document.getElementById('snFont');
+  if(snFont) snFont.addEventListener('change', function(){
+    document.execCommand('styleWithCSS', false, true);
+    document.execCommand('fontName', false, this.value);
+    body.focus();
+  });
+
+  // Font size
+  const snSize = document.getElementById('snSize');
+  if(snSize) snSize.addEventListener('change', function(){
+    document.execCommand('fontSize', false, this.value);
+    body.focus();
+  });
+
+  // Save on input
   let saveTimer = null;
-  ta.addEventListener('input', ()=>{
+  body.addEventListener('input', ()=>{
+    updateEmpty();
     clearTimeout(saveTimer);
-    const v = ta.value;
-    try{ if(v.trim()) localStorage.setItem(localKey(), v); else localStorage.removeItem(localKey()); }catch(e){}
+    const html = body.innerHTML;
+    try{ if(body.innerText.trim()) localStorage.setItem(localKey(), html); else localStorage.removeItem(localKey()); }catch(e){}
     saveTimer = setTimeout(async ()=>{
       if(typeof currentUser !== 'undefined' && currentUser){
-        await apiSaveNote(currentUser, iso, v);
+        await apiSaveNote(currentUser, iso, html);
         flashSaved();
       }
     }, 800);
