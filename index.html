@@ -353,7 +353,8 @@
   .top-row header.top{margin-bottom:0;}
   .sticky-note{
     position:absolute;right:0;top:0;
-    width:270px;
+    width:270px;min-width:200px;max-width:calc(100% - 20px);
+    user-select:none;
     background:rgba(227,183,101,0.07);
     border:1px solid rgba(227,183,101,0.22);
     border-radius:14px;
@@ -394,6 +395,12 @@
     line-height:1.65;min-height:100px;width:100%;caret-color:var(--gold);
     overflow-y:auto;word-break:break-word;
   }
+  .sn-resize{
+    position:absolute;left:-4px;top:0;width:8px;height:100%;
+    cursor:ew-resize;z-index:10;border-radius:4px 0 0 4px;
+  }
+  .sn-resize:hover,.sn-resize.dragging{ background:rgba(255,255,255,0.10); }
+  .sticky-note-body{user-select:text;}
   .sticky-note-body.empty::before{
     content:attr(data-ph);color:rgba(255,255,255,0.18);font-size:12.5px;
     pointer-events:none;display:block;
@@ -506,6 +513,7 @@
       <div class="syncbadge" id="syncBadge"><span class="dot local"></span> Connecting…</div>
     </header>
     <div class="sticky-note" id="stickyNote" style="display:none">
+      <div class="sn-resize" id="snResize"></div>
       <div class="sticky-note-head">
         <span class="sticky-note-label">Today's Plan</span>
         <span class="sticky-note-date-lbl" id="stickyNoteDateLbl"></span>
@@ -515,6 +523,7 @@
         <button class="sn-btn" data-cmd="bold" title="Bold"><b>B</b></button>
         <button class="sn-btn" data-cmd="italic" title="Italic"><i>I</i></button>
         <button class="sn-btn" data-cmd="underline" title="Underline"><u>U</u></button>
+        <button class="sn-btn" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
         <span class="sn-div"></span>
         <select class="sn-sel" id="snFont" title="Font">
           <option value="Inter">Inter</option>
@@ -1822,7 +1831,7 @@ if(IS_TESTER) document.getElementById('testerBanner').style.display = 'flex';
     }
   };
 
-  // Toolbar: bold / italic / underline
+  // Toolbar: bold / italic / underline / strikethrough
   document.querySelectorAll('.sn-btn[data-cmd]').forEach(btn => {
     btn.addEventListener('mousedown', e => {
       e.preventDefault();
@@ -1830,6 +1839,32 @@ if(IS_TESTER) document.getElementById('testerBanner').style.display = 'flex';
       body.focus();
     });
   });
+
+  // Resize handle — drag left edge to widen the note
+  const snEl     = document.getElementById('stickyNote');
+  const resizeEl = document.getElementById('snResize');
+  if(resizeEl && snEl){
+    resizeEl.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = snEl.offsetWidth;
+      resizeEl.classList.add('dragging');
+      const onMove = mv => {
+        const newW = Math.min(
+          Math.max(startW + (startX - mv.clientX), 200),
+          snEl.parentElement.offsetWidth - 20
+        );
+        snEl.style.width = newW + 'px';
+      };
+      const onUp = () => {
+        resizeEl.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
 
   const snFont = document.getElementById('snFont');
   if(snFont) snFont.addEventListener('change', function(){
