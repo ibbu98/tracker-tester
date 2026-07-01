@@ -396,9 +396,11 @@
     overflow-y:auto;word-break:break-word;
   }
   .sn-resize{
-    position:absolute;left:-4px;top:0;width:8px;height:100%;
-    cursor:ew-resize;z-index:10;border-radius:4px 0 0 4px;
+    position:absolute;top:0;width:8px;height:100%;
+    cursor:ew-resize;z-index:10;
   }
+  .sn-resize-l{ left:-4px;border-radius:4px 0 0 4px; }
+  .sn-resize-r{ right:-4px;border-radius:0 4px 4px 0; }
   .sn-resize:hover,.sn-resize.dragging{ background:rgba(255,255,255,0.10); }
   .sticky-note-body{user-select:text;}
   .sticky-note-body.empty::before{
@@ -513,7 +515,8 @@
       <div class="syncbadge" id="syncBadge"><span class="dot local"></span> Connecting…</div>
     </header>
     <div class="sticky-note" id="stickyNote" style="display:none">
-      <div class="sn-resize" id="snResize"></div>
+      <div class="sn-resize sn-resize-l" id="snResize"></div>
+      <div class="sn-resize sn-resize-r" id="snResizeR"></div>
       <div class="sticky-note-head">
         <span class="sticky-note-label">Today's Plan</span>
         <span class="sticky-note-date-lbl" id="stickyNoteDateLbl"></span>
@@ -1863,6 +1866,30 @@ if(IS_TESTER) document.getElementById('testerBanner').style.display = 'flex';
       };
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
+    });
+  }
+
+  const resizeElR = document.getElementById('snResizeR');
+  if(resizeElR && snEl){
+    resizeElR.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = snEl.offsetWidth;
+      resizeElR.classList.add('dragging');
+      const onMoveR = mv => {
+        const newW = Math.min(
+          Math.max(startW + (mv.clientX - startX), 200),
+          snEl.parentElement.offsetWidth - 20
+        );
+        snEl.style.width = newW + 'px';
+      };
+      const onUpR = () => {
+        resizeElR.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMoveR);
+        document.removeEventListener('mouseup', onUpR);
+      };
+      document.addEventListener('mousemove', onMoveR);
+      document.addEventListener('mouseup', onUpR);
     });
   }
 
