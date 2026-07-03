@@ -806,9 +806,9 @@ async function apiGetWeekBoth(start, end){
   const res  = await fetch(url);
   if(!res.ok) throw new Error('Network error ' + res.status);
   const json = await res.json();
-  if(json.code === 401){ handleUnauthorized(); throw new Error('Session expired'); }
+  if(!json.ok && json.error === 'Unauthorized'){ handleUnauthorized(); throw new Error('Session expired'); }
   if(!json.ok) throw new Error(json.error || 'Unknown API error');
-  return json.data;
+  return json;
 }
 
 async function apiSaveDay(user, date, activities){
