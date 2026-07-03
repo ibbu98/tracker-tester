@@ -1399,10 +1399,11 @@ function setSyncBadge(kind, text){
 
 function applyWeekData(dates, data){
   weekAnotesA = {}; weekAnotesB = {};
+  const wd = data.data || data;
   dates.forEach(d => {
     const iso = formatISO(d);
-    weekDataA[iso] = new Set((data[USER_A_NAME]?.[iso]) || []);
-    weekDataB[iso] = new Set((data[USER_B_NAME]?.[iso]) || []);
+    weekDataA[iso] = new Set((wd[USER_A_NAME]?.[iso]) || []);
+    weekDataB[iso] = new Set((wd[USER_B_NAME]?.[iso]) || []);
     localSet(USER_A_NAME, iso, [...weekDataA[iso]]);
     localSet(USER_B_NAME, iso, [...weekDataB[iso]]);
     if(data.anotes){

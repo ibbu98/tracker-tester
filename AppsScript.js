@@ -131,7 +131,7 @@ function getWeekBoth(p){
     try{ anotes[user][date] = JSON.parse(ants || '{}'); }catch{ anotes[user][date] = {}; }
   }
 
-  return JSON.stringify({ ok:true, ...result, anotes });
+  return JSON.stringify({ ok:true, data:result, anotes });
 }
 
 // ═══════════════════════════════════════════════════════════════
