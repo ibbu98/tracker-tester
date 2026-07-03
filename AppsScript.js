@@ -315,50 +315,42 @@ function getPhoto(p){
 }
 
 function uploadChunk(p, authedUser){
-  const user  = p.user;
-  const date  = p.date;
-  const index = parseInt(p.index || '0');  // 'index' = chunk number
-  const data  = p.chunk || '';             // 'chunk' = base64 data
-  const total = parseInt(p.total || '1');
+  const user    = p.user;
+  const date    = p.date;
+  const session = (p.session || '').replace(/[^a-zA-Z0-9]/g,'').slice(-12);
+  const index   = parseInt(p.index || '0');
+  const data    = p.chunk || '';
+  const total   = parseInt(p.total || '1');
 
   if(user !== authedUser) return JSON.stringify({ ok:false, error:'Forbidden' });
 
   const sh = getPhotoSheet();
 
-  // First chunk: clear any previous rows (old photo or failed upload)
-  if(index === 0){
-    const rows = sh.getDataRange().getValues();
-    for(let i = rows.length - 1; i >= 1; i--){
-      if(String(rows[i][0]) === user && formatSheetDate(rows[i][1]) === date)
-        sh.deleteRow(i+1);
-    }
-  }
+  // Append this chunk with a session-scoped key — no delete here to avoid race conditions
+  // when parallel requests run. Cleanup happens only on the last chunk during assembly.
+  sh.appendRow([user, date, session + ':' + index, data, '']);
 
-  sh.appendRow([user, date, 'chunk_' + index, data, '']);
-
-  // Last chunk: assemble → Drive → record URL
   if(index === total - 1){
-    const rows    = sh.getDataRange().getValues();
-    const byIndex = {};
-    const chunkRowNums = [];
+    const rows     = sh.getDataRange().getValues();
+    const byIndex  = {};
+    const toDelete = [];
+    const prefix   = session + ':';
+
     for(let i = 1; i < rows.length; i++){
-      if(String(rows[i][0]) === user && formatSheetDate(rows[i][1]) === date){
-        const t = String(rows[i][2]);
-        if(t.startsWith('chunk_')){
-          byIndex[parseInt(t.replace('chunk_', ''))] = rows[i][3];
-          chunkRowNums.push(i + 1);
-        }
+      if(String(rows[i][0]) !== user || formatSheetDate(rows[i][1]) !== date) continue;
+      const t = String(rows[i][2]);
+      if(t.startsWith(prefix)){
+        byIndex[parseInt(t.slice(prefix.length))] = rows[i][3];
+        toDelete.push(i + 1);
+      } else {
+        toDelete.push(i + 1); // delete orphan chunks and old 'done' rows
       }
     }
-    const keys       = Object.keys(byIndex).map(Number).sort((a,b) => a-b);
-    const fullBase64 = keys.map(k => byIndex[k]).join('');
 
+    const fullBase64 = Object.keys(byIndex).map(Number).sort((a,b) => a-b).map(k => byIndex[k]).join('');
     const result = saveToDrive(user, date, fullBase64);
 
-    // Delete all chunk rows (bottom → top so indices stay valid)
-    chunkRowNums.sort((a,b) => b-a).forEach(r => sh.deleteRow(r));
-
-    // Store final URL
+    toDelete.sort((a,b) => b-a).forEach(r => sh.deleteRow(r));
     sh.appendRow([user, date, 'done', result.url, result.fileId]);
 
     return JSON.stringify({ ok:true, done:true, url:result.url });

@@ -918,8 +918,8 @@ function resizeImage(file, maxPx = 720){
 }
 
 async function uploadToDrive(user, date, base64, onProgress){
-  const CHUNK   = 3500;  // safe URL length (~4.5 KB per request)
-  const BATCH   = 8;     // parallel requests
+  const CHUNK   = 3500;
+  const BATCH   = 1;     // sequential — prevents sheet race conditions in GAS
   const chunks  = [];
   for(let i = 0; i < base64.length; i += CHUNK) chunks.push(base64.slice(i, i + CHUNK));
   const total   = chunks.length;
