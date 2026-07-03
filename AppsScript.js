@@ -297,7 +297,7 @@ function saveToDrive(user, date, base64){
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
   return {
-    url:    'https://drive.google.com/uc?export=view&id=' + file.getId(),
+    url:    'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w720',
     fileId: file.getId()
   };
 }

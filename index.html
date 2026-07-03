@@ -885,7 +885,15 @@ async function apiGetPhoto(user, date){
 /* ═══════════════════════════════════════════════
    PHOTO — resize + chunked upload
    ═══════════════════════════════════════════════ */
-function localGetPhotoUrl(user, iso){ try{ return localStorage.getItem(`${LS_NS}photo:${user}:${iso}`) || null; }catch(e){ return null; } }
+function fixDriveUrl(url){
+  if(!url) return url;
+  // Convert old uc?export=view URLs to thumbnail format which works in <img> tags
+  const m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(m && url.includes('drive.google.com') && !url.includes('thumbnail'))
+    return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w720';
+  return url;
+}
+function localGetPhotoUrl(user, iso){ try{ return fixDriveUrl(localStorage.getItem(`${LS_NS}photo:${user}:${iso}`) || null); }catch(e){ return null; } }
 function localSetPhotoUrl(user, iso, url){
   try{
     if(url) localStorage.setItem(`${LS_NS}photo:${user}:${iso}`, url);
@@ -991,7 +999,7 @@ async function renderPhotoDay(){
 
   // Fetch from server in background
   if(configured()){
-    const serverUrl = await apiGetPhoto(currentUser, iso);
+    const serverUrl = fixDriveUrl(await apiGetPhoto(currentUser, iso));
     if(serverUrl && serverUrl !== photoUrl){
       photoUrl = serverUrl;
       localSetPhotoUrl(currentUser, iso, serverUrl);
