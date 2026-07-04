@@ -685,8 +685,9 @@ function getLabel(actId, dateISO, fallback){
     const sorted = [...history].sort((a,b) => b.until.localeCompare(a.until));
     for(const e of sorted){ if(dateISO <= e.until) return e.label; }
   }
-  const act = [...ACTIVITIES_IBRAHIM, ...ACTIVITIES_SAMEEHA].find(a => a.id === actId);
-  return act ? act.label : (fallback || actId);
+  // Always prefer the saved/custom label (fallback) over hardcoded defaults.
+  // The hardcoded lookup was causing user label-edits to be silently ignored.
+  return fallback || actId;
 }
 
 /* ═══════════════════════════════════════════════
@@ -1431,7 +1432,7 @@ document.getElementById('editSaveBtn').addEventListener('click', () => {
     document.getElementById('editModalOverlay').classList.add('hidden');
     setSyncBadge('cloud', 'Activities saved ✓');
     setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
-  }catch(e){ document.getElementById('editModalOverlay').classList.add('hidden'); }
+  }catch(e){ console.error('[editSave] error:', e); document.getElementById('editModalOverlay').classList.add('hidden'); }
 });
 document.getElementById('editCancelBtn').addEventListener('click', () =>
   document.getElementById('editModalOverlay').classList.add('hidden')
