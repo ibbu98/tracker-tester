@@ -1403,11 +1403,15 @@ document.getElementById('editAddBtn').addEventListener('click', () => {
   renderEditRows(a);
 });
 document.getElementById('editSaveBtn').addEventListener('click', () => {
-  const sorted = sortActivitiesByTime(getCurrentEditedActivities());
-  localStorage.setItem(`${LS_NS}custom_activities:${currentUser}`, JSON.stringify(sorted));
-  apiSaveUserConfig(currentUser, sorted, null);
-  document.getElementById('editModalOverlay').classList.add('hidden');
-  render();
+  try{
+    const sorted = sortActivitiesByTime(getCurrentEditedActivities());
+    localStorage.setItem(`${LS_NS}custom_activities:${currentUser}`, JSON.stringify(sorted));
+    apiSaveUserConfig(currentUser, sorted, null);
+    render();
+    document.getElementById('editModalOverlay').classList.add('hidden');
+    setSyncBadge('cloud', 'Activities saved ✓');
+    setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
+  }catch(e){ document.getElementById('editModalOverlay').classList.add('hidden'); }
 });
 document.getElementById('editCancelBtn').addEventListener('click', () =>
   document.getElementById('editModalOverlay').classList.add('hidden')
