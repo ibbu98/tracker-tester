@@ -665,7 +665,8 @@ function getActivities(user){
       const defs   = user === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
       const defMap = Object.fromEntries(defs.map(a => [a.id, a]));
       const SCHED  = ['fridayOnly','monthDay1Only','monthDayLast','monthDayFirst','scheduleDays','monthDay'];
-      return custom.map(act => {
+      const customIds = new Set(custom.map(a => a.id));
+      const processed = custom.map(act => {
         const def = defMap[act.id];
         if(!def) return act;
         // Backfill schedule props from hardcoded def unless the saved data has a meaningful
@@ -679,6 +680,9 @@ function getActivities(user){
         SCHED.forEach(k => { if(def[k] !== undefined) merge[k] = def[k]; });
         return { ...act, ...merge };
       });
+      // Append any hardcoded activities added after the user's list was saved.
+      const newDefs = defs.filter(d => !customIds.has(d.id));
+      return [...processed, ...newDefs];
     }
   }catch(e){}
   return user === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
