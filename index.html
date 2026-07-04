@@ -652,7 +652,19 @@ const ACTIVITIES_SAMEEHA = [
 function getActivities(user){
   try{
     const s = localStorage.getItem(`${LS_NS}custom_activities:${user}`);
-    if(s) return JSON.parse(s);
+    if(s){
+      const custom = JSON.parse(s);
+      const defs   = user === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
+      const defMap = Object.fromEntries(defs.map(a => [a.id, a]));
+      const SCHED  = ['fridayOnly','monthDay1Only','monthDayLast','scheduleDays','monthDay'];
+      return custom.map(act => {
+        const def = defMap[act.id];
+        if(!def) return act;
+        const merge = {};
+        SCHED.forEach(k => { if(def[k] !== undefined) merge[k] = def[k]; else delete act[k]; });
+        return { ...act, ...merge };
+      });
+    }
   }catch(e){}
   return user === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
 }
