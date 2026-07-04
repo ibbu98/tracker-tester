@@ -680,8 +680,8 @@ function getActivities(user){
         const defHasRange = def.monthDayLast !== undefined || def.monthDayFirst !== undefined;
         const hasExplicitSched = act.scheduleDays !== undefined ||
           act.monthDayLast !== undefined || act.monthDayFirst !== undefined ||
-          !!act.fridayOnly || !!act.monthDay1Only ||
-          (!defHasRange && act.monthDay !== undefined);
+          !!act.fridayOnly ||
+          (!defHasRange && (act.monthDay !== undefined || !!act.monthDay1Only));
         if(hasExplicitSched) return act;
         const merge = {};
         SCHED.forEach(k => { if(def[k] !== undefined) merge[k] = def[k]; });
