@@ -278,6 +278,12 @@
   .sched-month-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-soft);}
   .sched-month-inp{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;color:var(--ink);width:44px;padding:3px 6px;font-size:12px;text-align:center;font-family:'IBM Plex Mono',monospace;}
   .sched-month-inp:focus{outline:none;border-color:var(--teal);}
+  .edit-icon-btn{width:42px;height:34px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s;}
+  .edit-icon-btn:hover{border-color:var(--teal);}
+  .emoji-picker{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px;display:grid;grid-template-columns:repeat(8,36px);gap:2px;max-height:calc(5*36px + 12px);overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5);}
+  .emoji-picker.hidden{display:none;}
+  .emoji-opt{width:36px;height:36px;font-size:19px;background:none;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s;}
+  .emoji-opt:hover{background:rgba(255,255,255,.1);}
 
   /* ── Photo of the Day ── */
   .photo-day{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:14px;box-shadow:var(--shadow);}
@@ -1307,6 +1313,19 @@ function renderCustomCatChips(){
   }));
 }
 
+const EMOJIS = [
+  '🕌','🕋','🤲','📿','☪️','🌙','⭐','✨',
+  '🌟','💫','🕊️','🤍','💚','💛','🌺','🌸',
+  '📖','📚','📝','✏️','🖊️','✍️','🎓','💡',
+  '🧠','📋','🗒️','🔖','💻','📌','🎙️','🎧',
+  '💪','🏃','🧘','🚴','🏋️','💧','🥗','🌿',
+  '🍎','🥦','🍵','☕','🏅','🎯','🏆','🎖️',
+  '⏰','🌅','🌄','😴','☀️','🌤️','🛏️','🚿',
+  '🪥','🧹','🌱','🌍','🔥','⏱️','📅','✅',
+  '❤️','💬','📞','🤝','🫂','🏠','🎁','💎',
+  '🔑','🌈','🎨','🎵','🎶','📷','🦋','🔮',
+];
+
 function openEditModal(){
   document.getElementById('editModalTitle').textContent = `Edit ${currentUser}'s Activities`;
   renderEditRows(getActivities(currentUser));
@@ -1325,7 +1344,8 @@ function renderEditRows(acts){
     return `
     <div class="edit-activity-group">
       <div class="edit-row" data-idx="${idx}" data-id="${act.id || ''}">
-        <input class="edit-icon-inp" type="text" value="${act.icon}" maxlength="2" placeholder="🌙">
+        <input type="hidden" class="edit-icon-val" value="${act.icon || '⭐'}">
+        <button type="button" class="edit-icon-btn">${act.icon || '⭐'}</button>
         <input type="text" value="${escapeHtml(act.label)}" placeholder="Activity name">
         <input type="text" value="${escapeHtml(act.time)}" placeholder="Time">
         <select class="edit-cat-sel">${buildCatOptions(act.cat)}</select>
@@ -1380,6 +1400,21 @@ function renderEditRows(acts){
     });
     sel.addEventListener('mousedown', function(){ this.dataset.prev = this.value; });
   });
+
+  document.querySelectorAll('.edit-icon-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const inp = btn.previousElementSibling; // the hidden input
+      if(!_emojiPicker.classList.contains('hidden') && _emojiActiveInp === inp){
+        _emojiPicker.classList.add('hidden'); _emojiActiveInp = null; return;
+      }
+      _emojiActiveBtn = btn; _emojiActiveInp = inp;
+      const r = btn.getBoundingClientRect();
+      _emojiPicker.style.left = Math.min(r.left, window.innerWidth - 310) + 'px';
+      _emojiPicker.style.top  = r.bottom + 6 + 'px';
+      _emojiPicker.classList.remove('hidden');
+    });
+  });
 }
 
 function getCurrentEditedActivities(){
@@ -1406,7 +1441,7 @@ function getCurrentEditedActivities(){
 
     return {
       id,
-      icon:     inputs[0].value || '⭐',
+      icon:     (row.querySelector('.edit-icon-val')?.value) || '⭐',
       label:    inputs[1].value || 'Activity',
       time:     inputs[2].value || '',
       cat:      sel.value,
@@ -1440,6 +1475,29 @@ document.getElementById('editCancelBtn').addEventListener('click', () =>
 document.getElementById('editModalOverlay').addEventListener('click', e => {
   if(e.target === document.getElementById('editModalOverlay'))
     document.getElementById('editModalOverlay').classList.add('hidden');
+});
+
+/* ── Emoji picker (single global instance) ── */
+let _emojiActiveBtn = null, _emojiActiveInp = null;
+const _emojiPicker = document.createElement('div');
+_emojiPicker.className = 'emoji-picker hidden';
+_emojiPicker.innerHTML = EMOJIS.map(e => `<button type="button" class="emoji-opt">${e}</button>`).join('');
+document.body.appendChild(_emojiPicker);
+_emojiPicker.addEventListener('click', e => {
+  const opt = e.target.closest('.emoji-opt');
+  if(!opt) return;
+  const emoji = opt.textContent;
+  if(_emojiActiveInp) _emojiActiveInp.value = emoji;
+  if(_emojiActiveBtn) _emojiActiveBtn.textContent = emoji;
+  _emojiPicker.classList.add('hidden');
+  _emojiActiveBtn = null; _emojiActiveInp = null;
+});
+document.addEventListener('click', e => {
+  if(_emojiPicker.classList.contains('hidden')) return;
+  if(!_emojiPicker.contains(e.target) && !e.target.classList.contains('edit-icon-btn')){
+    _emojiPicker.classList.add('hidden');
+    _emojiActiveBtn = null; _emojiActiveInp = null;
+  }
 });
 
 /* ═══════════════════════════════════════════════
