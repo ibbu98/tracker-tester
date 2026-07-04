@@ -666,9 +666,11 @@ function getActivities(user){
       return custom.map(act => {
         const def = defMap[act.id];
         if(!def) return act;
-        // Only backfill schedule props from hardcoded def if none are saved yet (old-format upgrade).
-        // If any schedule prop is explicitly set (even fridayOnly:false), trust the saved data.
-        const hasExplicitSched = SCHED.some(k => act[k] !== undefined);
+        // Backfill schedule props from hardcoded def unless the saved data has a meaningful
+        // (positive) schedule indicator. Old buggy saves wrote fridayOnly:false,monthDay1Only:false
+        // for ALL activities — those are stale and should be overridden by the hardcoded def.
+        const hasExplicitSched = act.scheduleDays !== undefined || act.monthDay !== undefined ||
+          act.monthDayLast !== undefined || !!act.fridayOnly || !!act.monthDay1Only;
         if(hasExplicitSched) return act;
         const merge = {};
         SCHED.forEach(k => { if(def[k] !== undefined) merge[k] = def[k]; });
@@ -1437,6 +1439,10 @@ function getCurrentEditedActivities(){
     } else if(sType === 'monthly'){
       monthDay      = parseInt(schedDiv.querySelector('.sched-month-inp')?.value || '1');
       monthDay1Only = monthDay === 1;
+    } else {
+      // daily — save all 7 days explicitly so hasExplicitSched can distinguish
+      // this intentional daily setting from old stale data (which had no scheduleDays).
+      scheduleDays = [0,1,2,3,4,5,6];
     }
 
     return {
