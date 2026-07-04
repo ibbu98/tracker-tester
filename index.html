@@ -1610,8 +1610,14 @@ function render(){
     dates.forEach(d => {
       const iso      = formatISO(d);
       const di       = dayIdx(d);
-      const disabled = !actApplies(act, d) || formatISO(d) < START_DATE;
+      const applies  = actApplies(act, d);
+      const locked   = formatISO(d) < START_DATE;
+      const disabled = !applies || locked;
       let cell = '';
+      if(!applies && viewMode === 'daily'){
+        tbody += '<td></td>';
+        return;
+      }
       if(disabled){
         cell = `<div class="toggle-pair"><button class="toggle disabled" disabled></button></div>`;
       } else {
