@@ -1129,8 +1129,20 @@ function localSetNote(user, iso, actId, text){
 async function loadUserConfigFromBackend(user){
   const cfg = await apiGetUserConfig(user);
   if(!cfg) return;
-  if(cfg.activities) localStorage.setItem(`${LS_NS}custom_activities:${user}`, JSON.stringify(cfg.activities));
-  if(cfg.categories) localStorage.setItem(`${LS_NS}custom_categories`, JSON.stringify(cfg.categories));
+  let changed = false;
+  if(cfg.activities){ localStorage.setItem(`${LS_NS}custom_activities:${user}`, JSON.stringify(cfg.activities)); changed = true; }
+  if(cfg.categories)  localStorage.setItem(`${LS_NS}custom_categories`, JSON.stringify(cfg.categories));
+  if(changed) render();
+}
+
+function clearLocalToggleCache(){
+  const toDelete = [];
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(!k) continue;
+    if(k.startsWith(`${LS_NS}tracker:`) || k.startsWith(`${LS_NS}photo:`)) toDelete.push(k);
+  }
+  toDelete.forEach(k => localStorage.removeItem(k));
 }
 
 /* ═══════════════════════════════════════════════
@@ -1225,6 +1237,7 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 
 function selectUser(name){
   currentUser = name;
+  clearLocalToggleCache();
   document.getElementById('app').classList.add('visible');
   document.getElementById('stickyNote').style.display = 'flex';
   renderSwitcher();
