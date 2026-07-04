@@ -597,7 +597,6 @@
       <div class="custom-cat-chips" id="customCatChips"></div>
     </div>
     <div class="edit-actions">
-      <button class="edit-reset-btn" id="editResetBtn">↺ Reset to defaults</button>
       <button class="edit-cancel-btn" id="editCancelBtn">Cancel</button>
       <button class="edit-save-btn" id="editSaveBtn">Save</button>
     </div>
@@ -629,10 +628,10 @@ const ACTIVITIES_IBRAHIM = [
   { id:'ibrahim_adhkar_pm',      label:'Evening Adhkar',          time:'15:30', cat:'worship', icon:'📿', section:true },
   { id:'ibrahim_maghrib',        label:'After-Maghrib Recitation',time:'18:30', cat:'worship', icon:'🌇' },
   { id:'ibrahim_thaleem',        label:'Thaleem',                 time:'20:00', cat:'worship', icon:'👥' },
-  { id:'ibrahim_bayan',          label:'Bayan',                   time:'20:30', cat:'worship', icon:'🎙️' },
+  { id:'ibrahim_bayan',          label:'Bayan',                   time:'20:30', cat:'worship', icon:'🎙️', scheduleDays:[5,6] },
   { id:'ibrahim_masterclass',    label:'Masterclass Course',      time:'21:00', cat:'study',   icon:'🎓', section:true },
   { id:'ibrahim_kahf',           label:'Surah Al-Kahf + Salawat', time:'13:00', cat:'friday',  icon:'✨', fridayOnly:true, section:true },
-  { id:'ibrahim_salah_shukriya', label:'Salah Shukriya',          time:'09:00', cat:'worship', icon:'🌸', monthDay1Only:true },
+  { id:'ibrahim_salah_shukriya', label:'Salah Shukriya',          time:'09:00', cat:'worship', icon:'🌸', monthDayLast:true },
 ];
 
 const ACTIVITIES_SAMEEHA = [
@@ -645,9 +644,9 @@ const ACTIVITIES_SAMEEHA = [
   { id:'sameeha_adhkar_pm',      label:'Evening Adhkar',          time:'15:30', cat:'worship', icon:'📿', section:true },
   { id:'sameeha_maghrib',        label:'After-Maghrib Recitation',time:'18:30', cat:'worship', icon:'🌇' },
   { id:'sameeha_thaleem',        label:'Thaleem',                 time:'20:00', cat:'worship', icon:'👥' },
-  { id:'sameeha_bayan',          label:'Bayan',                   time:'20:30', cat:'worship', icon:'🎙️' },
+  { id:'sameeha_bayan',          label:'Bayan',                   time:'20:30', cat:'worship', icon:'🎙️', scheduleDays:[5,6] },
   { id:'sameeha_kahf',           label:'Surah Al-Kahf + Salawat', time:'13:00', cat:'friday',  icon:'✨', fridayOnly:true, section:true },
-  { id:'sameeha_salah_shukriya', label:'Salah Shukriya',          time:'09:00', cat:'worship', icon:'🌸', monthDay1Only:true },
+  { id:'sameeha_salah_shukriya', label:'Salah Shukriya',          time:'09:00', cat:'worship', icon:'🌸', monthDayLast:true },
 ];
 
 function getActivities(user){
@@ -701,7 +700,7 @@ function buildCatOptions(currentCat){
 
 const DAY_LABELS = ['M','T','W','T','F','S','S'];
 function getActScheduleType(act){
-  if(act.monthDay || act.monthDay1Only) return 'monthly';
+  if(act.monthDay || act.monthDay1Only || act.monthDayLast) return 'monthly';
   const days = act.scheduleDays;
   if((days && days.length < 7) || act.fridayOnly) return 'weekly';
   return 'daily';
@@ -716,6 +715,7 @@ function actApplies(act, d){
   const di = dayIdx(d);
   if(act.monthDay)       return d.getDate() === act.monthDay;
   if(act.monthDay1Only)  return d.getDate() === 1;
+  if(act.monthDayLast)   return d.getDate() === new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
   if(act.scheduleDays && act.scheduleDays.length < 7) return act.scheduleDays.includes(di);
   if(act.fridayOnly)     return di === 4;
   return true;
@@ -778,6 +778,12 @@ const apiCache   = {};
 /* ═══════════════════════════════════════════════
    API LAYER
    ═══════════════════════════════════════════════ */
+function fetchWithTimeout(url, ms = 12000){
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(tid));
+}
+
 function configured(){
   return API_URL && !API_URL.includes('PASTE_YOUR');
 }
@@ -793,19 +799,27 @@ function handleUnauthorized(){
 }
 
 async function apiLogin(user, password){
-  const url  = `${API_URL}?action=login&user=${encodeURIComponent(user)}&password=${encodeURIComponent(password)}`;
-  const res  = await fetch(url);
-  if(!res.ok) throw new Error('Network error ' + res.status);
-  const json = await res.json();
+  const url = `${API_URL}?action=login&user=${encodeURIComponent(user)}&password=${encodeURIComponent(password)}`;
+  let res;
+  try{ res = await fetchWithTimeout(url, 15000); }
+  catch(e){ throw new Error(e.name === 'AbortError' ? 'Login timed out — server is slow, try again' : 'Network error — check your connection'); }
+  if(!res.ok) throw new Error('Server error ' + res.status);
+  let json;
+  try{ json = await res.json(); }
+  catch(e){ throw new Error('Server returned invalid response — check Apps Script deployment'); }
   if(!json.ok) throw new Error(json.error || 'Login failed');
   return json;
 }
 
 async function apiGetWeekBoth(start, end){
-  const url  = `${API_URL}?action=getWeekBoth&userA=${encodeURIComponent(USER_A_NAME)}&userB=${encodeURIComponent(USER_B_NAME)}&start=${start}&end=${end}&token=${sessionToken}`;
-  const res  = await fetch(url);
+  const url = `${API_URL}?action=getWeekBoth&userA=${encodeURIComponent(USER_A_NAME)}&userB=${encodeURIComponent(USER_B_NAME)}&start=${start}&end=${end}&token=${sessionToken}`;
+  let res;
+  try{ res = await fetchWithTimeout(url); }
+  catch(e){ throw new Error(e.name === 'AbortError' ? 'Request timed out' : 'Network error'); }
   if(!res.ok) throw new Error('Network error ' + res.status);
-  const json = await res.json();
+  let json;
+  try{ json = await res.json(); }
+  catch(e){ throw new Error('Invalid server response'); }
   if(!json.ok && json.error === 'Unauthorized'){ handleUnauthorized(); throw new Error('Session expired'); }
   if(!json.ok) throw new Error(json.error || 'Unknown API error');
   return json;
@@ -813,10 +827,10 @@ async function apiGetWeekBoth(start, end){
 
 async function apiSaveDay(user, date, activities){
   const url  = `${API_URL}?action=saveDay&user=${encodeURIComponent(user)}&date=${date}&activities=${encodeURIComponent(JSON.stringify(activities))}&token=${sessionToken}`;
-  const res  = await fetch(url);
+  const res  = await fetchWithTimeout(url);
   if(!res.ok) throw new Error('Network error ' + res.status);
   const json = await res.json();
-  if(json.code === 401){ handleUnauthorized(); throw new Error('Session expired'); }
+  if(!json.ok && json.error === 'Unauthorized'){ handleUnauthorized(); throw new Error('Session expired'); }
   if(!json.ok) throw new Error(json.error || 'Save failed');
   return json;
 }
@@ -824,7 +838,7 @@ async function apiSaveDay(user, date, activities){
 async function apiGetNote(user, date){
   try{
     const url = `${API_URL}?action=getNote&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
-    const res  = await fetch(url);
+    const res  = await fetchWithTimeout(url);
     if(!res.ok) return null;
     const json = await res.json();
     return json.ok ? (json.note || '') : null;
@@ -834,14 +848,14 @@ async function apiGetNote(user, date){
 async function apiSaveNote(user, date, note){
   try{
     const url = `${API_URL}?action=saveNote&user=${encodeURIComponent(user)}&date=${date}&note=${encodeURIComponent(note)}&token=${sessionToken}`;
-    await fetch(url);
+    await fetchWithTimeout(url);
   }catch(e){}
 }
 
 async function apiGetUserConfig(user){
   try{
     const url = `${API_URL}?action=getUserConfig&user=${encodeURIComponent(user)}&token=${sessionToken}`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     if(!res.ok) return null;
     const json = await res.json();
     return json.ok ? json : null;
@@ -852,20 +866,20 @@ async function apiSaveUserConfig(user, activities, categories){
     let url = `${API_URL}?action=saveUserConfig&user=${encodeURIComponent(user)}&token=${sessionToken}`;
     if(activities != null) url += `&activities=${encodeURIComponent(JSON.stringify(activities))}`;
     if(categories != null) url += `&categories=${encodeURIComponent(JSON.stringify(categories))}`;
-    await fetch(url);
+    await fetchWithTimeout(url);
   }catch(e){}
 }
 async function apiSaveAnote(user, date, actId, text){
   try{
     const url = `${API_URL}?action=saveAnote&user=${encodeURIComponent(user)}&date=${date}&actId=${encodeURIComponent(actId)}&text=${encodeURIComponent(text)}&token=${sessionToken}`;
-    await fetch(url);
+    await fetchWithTimeout(url);
   }catch(e){}
 }
 
 async function apiDeletePhoto(user, date){
   const url = `${API_URL}?action=deletePhoto&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
   try{
-    const res  = await fetch(url);
+    const res  = await fetchWithTimeout(url, 20000);
     if(!res.ok) return false;
     const json = await res.json();
     return !!json.ok;
@@ -875,7 +889,7 @@ async function apiDeletePhoto(user, date){
 async function apiGetPhoto(user, date){
   const url = `${API_URL}?action=getPhoto&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
   try{
-    const res  = await fetch(url);
+    const res  = await fetchWithTimeout(url);
     if(!res.ok) return null;
     const json = await res.json();
     return json.ok ? (json.url || null) : null;
@@ -1383,13 +1397,6 @@ document.getElementById('editSaveBtn').addEventListener('click', () => {
   document.getElementById('editModalOverlay').classList.add('hidden');
   render();
 });
-document.getElementById('editResetBtn').addEventListener('click', () => {
-  if(!confirm('Reset to default activities? Your custom list will be cleared.')) return;
-  localStorage.removeItem(`${LS_NS}custom_activities:${currentUser}`);
-  const defaults = currentUser === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
-  apiSaveUserConfig(currentUser, defaults, null);
-  renderEditRows(defaults);
-});
 document.getElementById('editCancelBtn').addEventListener('click', () =>
   document.getElementById('editModalOverlay').classList.add('hidden')
 );
@@ -1519,15 +1526,16 @@ async function toggleActivity(iso, activityId, dIdx, who){
         const dates    = getWeekDates();
         const cacheKey = `${formatISO(dates[0])}:${formatISO(dates[6])}`;
         if(apiCache[cacheKey]){
-          if(!apiCache[cacheKey].data[who]) apiCache[cacheKey].data[who] = {};
-          apiCache[cacheKey].data[who][iso] = snapshot;
+          const cached = apiCache[cacheKey].data;
+          if(!cached.data) cached.data = {};
+          if(!cached.data[who]) cached.data[who] = {};
+          cached.data[who][iso] = snapshot;
           apiCache[cacheKey].time = Date.now();
         }
         setSyncBadge('cloud', `Saved ✓ — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
         setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
       }catch(err){
-        setSyncBadge('err', 'Save failed: ' + err.message);
-        usingCloud = false;
+        setSyncBadge('err', 'Save failed — will retry on next change');
       }
     }, 300);
   }
@@ -1568,6 +1576,7 @@ function render(){
   const labelDate = formatISO(dates[0]);
   let tbody = '<tbody>';
   getActivities(currentUser).forEach(act => {
+    if(viewMode === 'daily' && !actApplies(act, dates[0])) return;
     const label = getLabel(act.id, labelDate, act.label);
     tbody += `<tr class="${act.section?'section-start':''}" data-act="${act.id}">`;
 
