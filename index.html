@@ -1530,15 +1530,30 @@ async function toggleActivity(iso, activityId, dIdx, who){
   renderUndoBtn();
   localSet(who, iso, [...set]);
 
+  // Optimistic cache update — so any applyWeekData from mode-switch or nav sees new state
+  const _togDates    = getWeekDates();
+  const _togCacheKey = `${formatISO(_togDates[0])}:${formatISO(_togDates[6])}`;
+  if(apiCache[_togCacheKey]){
+    const _c = apiCache[_togCacheKey].data;
+    if(!_c.data) _c.data = {};
+    if(!_c.data[who]) _c.data[who] = {};
+    _c.data[who][iso] = [...set];
+  }
+
   if(usingCloud){
-    const debKey  = `${who}:${iso}`;
+    const debKey   = `${who}:${iso}`;
     const snapshot = [...set];
     clearTimeout(saveDebounce[debKey]);
     saveDebounce[debKey] = setTimeout(async () => {
       setSyncBadge('local', 'Saving…');
       try{
         await apiSaveDay(who, iso, snapshot);
-        // Update only this date in cache — don't wipe everything
+        // Re-assert saved state in memory — guards against applyWeekData race during save
+        const mem = who === USER_A_NAME ? weekDataA : weekDataB;
+        if(mem[iso]) mem[iso] = new Set(snapshot);
+        localSet(who, iso, snapshot);
+        renderLight();
+        // Update cache
         const dates    = getWeekDates();
         const cacheKey = `${formatISO(dates[0])}:${formatISO(dates[6])}`;
         if(apiCache[cacheKey]){
