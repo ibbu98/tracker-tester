@@ -687,8 +687,10 @@ function getActivities(user){
         SCHED.forEach(k => { if(def[k] !== undefined) merge[k] = def[k]; });
         return { ...act, ...merge };
       });
-      // Append any hardcoded activities added after the user's list was saved.
-      const newDefs = defs.filter(d => !customIds.has(d.id));
+      // Append hardcoded activities added after the user's list was saved,
+      // but skip any the user explicitly deleted.
+      const deletedIds = new Set(JSON.parse(localStorage.getItem(`${LS_NS}deleted_acts:${user}`) || '[]'));
+      const newDefs = defs.filter(d => !customIds.has(d.id) && !deletedIds.has(d.id));
       return [...processed, ...newDefs];
     }
   }catch(e){}
@@ -1502,6 +1504,14 @@ document.getElementById('editAddBtn').addEventListener('click', () => {
 document.getElementById('editSaveBtn').addEventListener('click', () => {
   try{
     const sorted = sortActivitiesByTime(getCurrentEditedActivities());
+    // Track which hardcoded activities were removed so auto-append skips them.
+    const savedIds = new Set(sorted.map(a => a.id));
+    const defs = currentUser === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
+    const prevDeleted = JSON.parse(localStorage.getItem(`${LS_NS}deleted_acts:${currentUser}`) || '[]');
+    const nowDeleted  = defs.filter(d => !savedIds.has(d.id)).map(d => d.id);
+    // Also un-delete any that were re-added (custom activity with same id restored).
+    const merged = [...new Set([...prevDeleted, ...nowDeleted])].filter(id => !savedIds.has(id));
+    localStorage.setItem(`${LS_NS}deleted_acts:${currentUser}`, JSON.stringify(merged));
     localStorage.setItem(`${LS_NS}custom_activities:${currentUser}`, JSON.stringify(sorted));
     apiSaveUserConfig(currentUser, sorted, null);
     render();
