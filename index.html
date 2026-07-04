@@ -631,7 +631,7 @@ const ACTIVITIES_IBRAHIM = [
   { id:'ibrahim_bayan',          label:'Bayan',                   time:'20:30', cat:'worship', icon:'🎙️', scheduleDays:[5,6] },
   { id:'ibrahim_masterclass',    label:'Masterclass Course',      time:'21:00', cat:'study',   icon:'🎓', section:true },
   { id:'ibrahim_kahf',           label:'Surah Al-Kahf + Salawat', time:'13:00', cat:'friday',  icon:'✨', fridayOnly:true, section:true },
-  { id:'ibrahim_salah_shukriya', label:'Salah Shukriya',          time:'09:00', cat:'worship', icon:'🌸', monthDayLast:true },
+  { id:'ibrahim_salah_shukriya', label:'Salah Shukriya',          time:'09:00', cat:'worship', icon:'🌸', monthDayLast:3 },
 ];
 
 const ACTIVITIES_SAMEEHA = [
@@ -646,7 +646,7 @@ const ACTIVITIES_SAMEEHA = [
   { id:'sameeha_thaleem',        label:'Thaleem',                 time:'20:00', cat:'worship', icon:'👥' },
   { id:'sameeha_bayan',          label:'Bayan',                   time:'20:30', cat:'worship', icon:'🎙️', scheduleDays:[5,6] },
   { id:'sameeha_kahf',           label:'Surah Al-Kahf + Salawat', time:'13:00', cat:'friday',  icon:'✨', fridayOnly:true, section:true },
-  { id:'sameeha_salah_shukriya', label:'Salah Shukriya',          time:'09:00', cat:'worship', icon:'🌸', monthDayLast:true },
+  { id:'sameeha_salah_shukriya', label:'Salah Shukriya',          time:'09:00', cat:'worship', icon:'🌸', monthDayLast:3 },
 ];
 
 function getActivities(user){
@@ -727,7 +727,7 @@ function actApplies(act, d){
   const di = dayIdx(d);
   if(act.monthDay)       return d.getDate() === act.monthDay;
   if(act.monthDay1Only)  return d.getDate() === 1;
-  if(act.monthDayLast)   return d.getDate() === new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  if(act.monthDayLast){  const last = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); const n = typeof act.monthDayLast === 'number' ? act.monthDayLast : 1; return d.getDate() >= last - (n - 1); }
   if(act.scheduleDays && act.scheduleDays.length < 7) return act.scheduleDays.includes(di);
   if(act.fridayOnly)     return di === 4;
   return true;
