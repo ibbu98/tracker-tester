@@ -786,6 +786,7 @@ let lastAction   = null;
 let photoVisible = true;
 let _noteSaveTimer = null;
 const apiCache   = {};
+const pendingSaves = new Set(); // "who:iso" — blocks applyWeekData from overwriting in-flight saves
 
 /* ═══════════════════════════════════════════════
    API LAYER
@@ -1433,10 +1434,14 @@ function applyWeekData(dates, data){
   const wd = data.data || data;
   dates.forEach(d => {
     const iso = formatISO(d);
-    weekDataA[iso] = new Set((wd[USER_A_NAME]?.[iso]) || []);
-    weekDataB[iso] = new Set((wd[USER_B_NAME]?.[iso]) || []);
-    localSet(USER_A_NAME, iso, [...weekDataA[iso]]);
-    localSet(USER_B_NAME, iso, [...weekDataB[iso]]);
+    if(!pendingSaves.has(`${USER_A_NAME}:${iso}`)){
+      weekDataA[iso] = new Set((wd[USER_A_NAME]?.[iso]) || []);
+      localSet(USER_A_NAME, iso, [...weekDataA[iso]]);
+    }
+    if(!pendingSaves.has(`${USER_B_NAME}:${iso}`)){
+      weekDataB[iso] = new Set((wd[USER_B_NAME]?.[iso]) || []);
+      localSet(USER_B_NAME, iso, [...weekDataB[iso]]);
+    }
     if(data.anotes){
       weekAnotesA[iso] = data.anotes[USER_A_NAME]?.[iso] || {};
       weekAnotesB[iso] = data.anotes[USER_B_NAME]?.[iso] || {};
@@ -1542,17 +1547,15 @@ async function toggleActivity(iso, activityId, dIdx, who){
 
   if(usingCloud){
     const debKey   = `${who}:${iso}`;
-    const snapshot = [...set];
+    const saveKey  = `${who}:${iso}`;
     clearTimeout(saveDebounce[debKey]);
+    pendingSaves.add(saveKey);
     saveDebounce[debKey] = setTimeout(async () => {
+      const snapshot = [...(who === USER_A_NAME ? weekDataA[iso] : weekDataB[iso])];
       setSyncBadge('local', 'Saving…');
       try{
         await apiSaveDay(who, iso, snapshot);
-        // Re-assert saved state in memory — guards against applyWeekData race during save
-        const mem = who === USER_A_NAME ? weekDataA : weekDataB;
-        if(mem[iso]) mem[iso] = new Set(snapshot);
-        localSet(who, iso, snapshot);
-        renderLight();
+        pendingSaves.delete(saveKey);
         // Update cache
         const dates    = getWeekDates();
         const cacheKey = `${formatISO(dates[0])}:${formatISO(dates[6])}`;
@@ -1566,6 +1569,7 @@ async function toggleActivity(iso, activityId, dIdx, who){
         setSyncBadge('cloud', `Saved ✓ — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
         setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
       }catch(err){
+        pendingSaves.delete(saveKey);
         setSyncBadge('err', 'Save failed — will retry on next change');
       }
     }, 300);
