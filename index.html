@@ -660,8 +660,12 @@ function getActivities(user){
       return custom.map(act => {
         const def = defMap[act.id];
         if(!def) return act;
+        // Only backfill schedule props from hardcoded def if none are saved yet (old-format upgrade).
+        // If any schedule prop is explicitly set (even fridayOnly:false), trust the saved data.
+        const hasExplicitSched = SCHED.some(k => act[k] !== undefined);
+        if(hasExplicitSched) return act;
         const merge = {};
-        SCHED.forEach(k => { if(def[k] !== undefined) merge[k] = def[k]; else delete act[k]; });
+        SCHED.forEach(k => { if(def[k] !== undefined) merge[k] = def[k]; });
         return { ...act, ...merge };
       });
     }
