@@ -1133,8 +1133,12 @@ function localSetNote(user, iso, actId, text){
 async function loadUserConfigFromBackend(user){
   const cfg = await apiGetUserConfig(user);
   if(!cfg) return;
-  if(cfg.activities) localStorage.setItem(`${LS_NS}custom_activities:${user}`, JSON.stringify(cfg.activities));
-  if(cfg.categories)  localStorage.setItem(`${LS_NS}custom_categories`, JSON.stringify(cfg.categories));
+  // Backend is a fallback for first-time/new-device load only.
+  // Never overwrite existing local data — local edits always take priority.
+  if(cfg.activities && !localStorage.getItem(`${LS_NS}custom_activities:${user}`))
+    localStorage.setItem(`${LS_NS}custom_activities:${user}`, JSON.stringify(cfg.activities));
+  if(cfg.categories && !localStorage.getItem(`${LS_NS}custom_categories`))
+    localStorage.setItem(`${LS_NS}custom_categories`, JSON.stringify(cfg.categories));
 }
 
 function clearLocalToggleCache(){
