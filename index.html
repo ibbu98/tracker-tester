@@ -1824,9 +1824,11 @@ function renderDuoMedallions(){
   function panelHTML(name, dataMap, cls){
     const isActive = name === currentUser;
     const inner    = dates.map((d, i) => {
-      const iso  = formatISO(d);
-      const set  = dataMap[iso] || new Set();
-      const pct  = applicableCount(i, name, d) ? Math.round(set.size / applicableCount(i, name, d) * 100) : 0;
+      const iso   = formatISO(d);
+      const set   = dataMap[iso] || new Set();
+      const total = applicableCount(i, name, d);
+      const done  = getActivities(name).filter(a => actApplies(a, d) && set.has(a.id)).length;
+      const pct   = total ? Math.round(done / total * 100) : 0;
       const dash = (pct / 100) * circ;
       return `<div class="medal${iso===todayISO?' today':''}">
         <div class="dayname">${DAY_NAMES[i]}</div>
