@@ -641,6 +641,14 @@
   .focus-expand-btn{display:block;margin:0 auto 14px;font-size:12px;padding:5px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;font-family:'IBM Plex Mono',monospace;}
   .focus-expand-btn:hover{border-color:var(--teal);color:var(--teal);}
 
+  /* ── Real (live wall-clock) date + time — small, secondary to the countdown ── */
+  .real-clock{text-align:center;margin-bottom:14px;}
+  .real-clock-date{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);letter-spacing:.03em;}
+  .real-clock-time{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);font-weight:600;margin-top:2px;letter-spacing:.02em;}
+  .real-clock.on-black{margin-bottom:0;}
+  .real-clock.on-black .real-clock-date{color:#888;}
+  .real-clock.on-black .real-clock-time{color:#bbb;}
+
   /* ── Focus fullscreen clock ── */
   .focus-fullscreen-overlay{position:fixed;inset:0;background:#000;z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;}
   .focus-fullscreen-overlay.hidden{display:none;}
@@ -799,6 +807,10 @@
     </div>
 
     <div class="app-section hidden" id="focusSection">
+      <div class="real-clock">
+        <div class="real-clock-date" id="focusRealClockDate"></div>
+        <div class="real-clock-time" id="focusRealClockTime"></div>
+      </div>
       <div class="sports-week-nav">
         <button id="focusPrevBtn">‹</button>
         <span class="range" id="focusDateRange">Loading…</span>
@@ -879,6 +891,10 @@
 <div class="focus-fullscreen-overlay hidden" id="focusFullscreenOverlay">
   <button class="focus-fullscreen-close" id="focusFullscreenCloseBtn">✕</button>
   <div class="focus-fullscreen-label" id="focusFullscreenLabel"></div>
+  <div class="real-clock on-black">
+    <div class="real-clock-date" id="focusFsRealClockDate"></div>
+    <div class="real-clock-time" id="focusFsRealClockTime"></div>
+  </div>
   <div id="focusFullscreenClockHost"></div>
   <button class="focus-fullscreen-pause-btn" id="focusFullscreenPauseBtn">⏸</button>
 </div>
@@ -3406,6 +3422,41 @@ function getFocusDate(){ const d = new Date(); d.setDate(d.getDate() + focusDayO
 function getFocusDateISO(){ return formatISO(getFocusDate()); }
 function focusStorageKey(){ return `${LS_NS}activeTimer:${currentUser}`; }
 
+/* ── Real (live) clock — the actual current date/time, independent of any
+   countdown. Ticks every second for as long as the app is open. ── */
+const MONTH_NAMES_FULL = ['January','February','March','April','May','June',
+                          'July','August','September','October','November','December'];
+function ordinalSuffix(n){
+  if(n >= 11 && n <= 13) return 'th';
+  switch(n % 10){
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+}
+function formatRealDate(d){
+  const day = d.getDate();
+  return `${DAY_NAMES_FULL[d.getDay()]}, ${day}${ordinalSuffix(day)} ${MONTH_NAMES_FULL[d.getMonth()]} ${d.getFullYear()}`;
+}
+function formatRealTime(d){
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+}
+let _realClockInterval = null;
+function tickRealClock(){
+  const now = new Date();
+  const dateStr = formatRealDate(now), timeStr = formatRealTime(now);
+  const d1 = document.getElementById('focusRealClockDate'); if(d1) d1.textContent = dateStr;
+  const t1 = document.getElementById('focusRealClockTime'); if(t1) t1.textContent = timeStr;
+  const d2 = document.getElementById('focusFsRealClockDate'); if(d2) d2.textContent = dateStr;
+  const t2 = document.getElementById('focusFsRealClockTime'); if(t2) t2.textContent = timeStr;
+}
+function startRealClock(){
+  if(_realClockInterval) return;
+  tickRealClock();
+  _realClockInterval = setInterval(tickRealClock, 1000);
+}
+
 /* ── API (mirrors apiGetFoodLog/apiSaveFoodLog) ── */
 async function apiGetFocusLog(user, date){
   const url = `${API_URL}?action=getFocusLog&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
@@ -3475,6 +3526,7 @@ function tickFocusTimer(){
    that finished while the app was closed ── */
 function initFocusTimer(){
   focusInitialized = true;
+  startRealClock();
   try{
     const raw = localStorage.getItem(focusStorageKey());
     if(raw) activeFocusTimer = JSON.parse(raw);
