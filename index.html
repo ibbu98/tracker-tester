@@ -645,25 +645,38 @@
   .focus-running-card{text-align:center;}
   .focus-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);margin-bottom:16px;}
 
-  /* ── Flip clock ── */
+  /* ── Flip clock — true split-flap: only one half moves at a time. The top
+     leaf falls away (0→-90deg) to reveal the new top half, then the bottom
+     leaf swings down (90→0deg) to reveal the new bottom half. ── */
   .flip-clock-wrap{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px 0 14px;}
-  .flip-unit{position:relative;width:52px;height:64px;perspective:300px;}
-  .flip-inner{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.65,0,.35,1);}
-  .flip-inner.no-transition{transition:none!important;}
-  .flip-unit.flip-animate .flip-inner{transform:rotateX(-180deg);}
-  .flip-face{
-    position:absolute;inset:0;border-radius:8px;background:#1c2124;color:#d8d8d8;
+  .flip-unit{position:relative;width:52px;height:64px;perspective:260px;}
+  .digit-half{position:absolute;left:0;right:0;height:50%;overflow:hidden;background:#1c2124;}
+  .digit-half::after{content:'';position:absolute;left:0;right:0;height:1px;background:rgba(0,0,0,.55);}
+  .base-top,.leaf-top{top:0;border-radius:8px 8px 0 0;}
+  .base-top::after,.leaf-top::after{bottom:0;}
+  .base-bottom,.leaf-bottom{bottom:0;border-radius:0 0 8px 8px;}
+  .base-bottom::after,.leaf-bottom::after{top:0;}
+  .digit-half .num{
+    position:absolute;left:0;right:0;height:200%;
     display:flex;align-items:center;justify-content:center;
-    font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:30px;
-    backface-visibility:hidden;box-shadow:0 2px 6px rgba(0,0,0,.4);
+    font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:30px;color:#d8d8d8;
   }
-  .flip-face::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.55);}
-  .flip-face.back{transform:rotateX(180deg);}
+  .base-top .num,.leaf-top .num{top:0;}
+  .base-bottom .num,.leaf-bottom .num{bottom:0;}
+  .leaf{z-index:2;backface-visibility:hidden;box-shadow:0 2px 6px rgba(0,0,0,.4);}
+  .leaf-top{transform-origin:bottom;transform:rotateX(0deg);transition:transform .18s ease-in;}
+  .leaf-bottom{transform-origin:top;transform:rotateX(90deg);transition:transform .18s ease-out;}
+  .flip-unit.flip-s1 .leaf-top{transform:rotateX(-90deg);}
+  .flip-unit.flip-s2 .leaf-bottom{transform:rotateX(0deg);}
+  .leaf.no-transition{transition:none!important;}
   .flip-clock-sep{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;color:var(--ink-soft);}
-  .flip-clock-wrap.paused .flip-face{color:var(--gold);}
+  .flip-clock-wrap.paused .digit-half .num{color:var(--gold);}
   .flip-clock-wrap.big{gap:16px;margin:10px 0 24px;}
   .flip-clock-wrap.big .flip-unit{width:clamp(70px,16vw,140px);height:clamp(90px,20vw,180px);}
-  .flip-clock-wrap.big .flip-face{font-size:clamp(38px,9vw,88px);border-radius:14px;}
+  .flip-clock-wrap.big .digit-half{border-radius:14px;}
+  .flip-clock-wrap.big .base-top,.flip-clock-wrap.big .leaf-top{border-radius:14px 14px 0 0;}
+  .flip-clock-wrap.big .base-bottom,.flip-clock-wrap.big .leaf-bottom{border-radius:0 0 14px 14px;}
+  .flip-clock-wrap.big .digit-half .num{font-size:clamp(38px,9vw,88px);}
   .flip-clock-wrap.big .flip-clock-sep{font-size:clamp(32px,8vw,80px);}
 
   .focus-expand-btn{display:block;margin:0 auto 14px;font-size:12px;padding:5px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;font-family:'IBM Plex Mono',monospace;}
@@ -709,7 +722,7 @@
   @media(max-width:520px){
     .focus-card{padding:14px 12px;}
     .flip-unit{width:40px;height:52px;}
-    .flip-face{font-size:22px;}
+    .digit-half .num{font-size:22px;}
     .flip-clock-sep{font-size:20px;}
     .focus-ctrl-btn{padding:9px 16px;font-size:12.5px;}
     .focus-custom-row{flex-direction:column;}
@@ -3722,11 +3735,11 @@ function playFocusBeep(){
    value face-up. Same markup/update path drives both the small inline
    clock in the running card and the big one in the fullscreen overlay. ── */
 function flipClockHTML(prefix, extraClass){
-  const unit = id => `<div class="flip-unit" id="${id}">
-    <div class="flip-inner">
-      <div class="flip-face front">00</div>
-      <div class="flip-face back">00</div>
-    </div>
+  const unit = id => `<div class="flip-unit" id="${id}" data-value="00">
+    <div class="digit-half base-top"><div class="num">00</div></div>
+    <div class="digit-half base-bottom"><div class="num">00</div></div>
+    <div class="digit-half leaf leaf-top"><div class="num">00</div></div>
+    <div class="digit-half leaf leaf-bottom"><div class="num">00</div></div>
   </div>`;
   return `<div class="flip-clock-wrap ${extraClass || ''}">
     ${unit(prefix + '-hh')}
@@ -3736,23 +3749,54 @@ function flipClockHTML(prefix, extraClass){
     ${unit(prefix + '-ss')}
   </div>`;
 }
+// Idle state: leaf-top sits flat (rotateX 0) showing the current value,
+// covering base-top; leaf-bottom sits folded up out of sight (rotateX 90),
+// so base-bottom (also showing the current value) is what's visible below.
+// A flip is two chained stages, each a real CSS transition on one leaf —
+// never the whole card — matching a real split-flap board:
+//   stage 1: base-top swaps to the new value (hidden behind leaf-top, so
+//            invisible), then leaf-top falls away (0→-90deg) to reveal it.
+//   stage 2: leaf-bottom loads the new value (still hidden at 90deg), then
+//            swings down (90→0deg) to cover base-bottom with it.
+// Once settled, both leaves are snapped back to their idle transform/content
+// with transitions briefly disabled — invisible, since at that instant each
+// leaf either matches the base layer behind it or is hidden — so the unit is
+// ready to run the exact same two-stage sequence on the next change.
 function setFlipUnit(unitEl, value, animate){
-  if(!unitEl) return;
-  const front = unitEl.querySelector('.front');
-  const back  = unitEl.querySelector('.back');
-  if(front.textContent === value) return;
-  if(!animate){ front.textContent = value; back.textContent = value; unitEl.classList.remove('flip-animate'); return; }
-  back.textContent = value;
-  unitEl.classList.add('flip-animate');
+  if(!unitEl || unitEl.dataset.value === value) return;
+  const baseTop     = unitEl.querySelector('.base-top .num');
+  const baseBottom  = unitEl.querySelector('.base-bottom .num');
+  const leafTopEl   = unitEl.querySelector('.leaf-top');
+  const leafBotEl   = unitEl.querySelector('.leaf-bottom');
+  const leafTop     = leafTopEl.querySelector('.num');
+  const leafBottom  = leafBotEl.querySelector('.num');
+
+  if(!animate){
+    unitEl.dataset.value = value;
+    baseTop.textContent = baseBottom.textContent = leafTop.textContent = leafBottom.textContent = value;
+    unitEl.classList.remove('flip-s1','flip-s2');
+    return;
+  }
+
+  baseTop.textContent = value;
+  unitEl.classList.add('flip-s1');
+
   setTimeout(() => {
-    const inner = unitEl.querySelector('.flip-inner');
-    if(!inner) return;
-    inner.classList.add('no-transition');
-    unitEl.classList.remove('flip-animate');
-    front.textContent = value;
-    void inner.offsetWidth; // force reflow before re-enabling the transition
-    inner.classList.remove('no-transition');
-  }, 500);
+    leafBottom.textContent = value;
+    baseBottom.textContent = value;
+    unitEl.classList.add('flip-s2');
+  }, 190);
+
+  setTimeout(() => {
+    leafTopEl.classList.add('no-transition');
+    leafBotEl.classList.add('no-transition');
+    unitEl.classList.remove('flip-s1','flip-s2');
+    leafTop.textContent = value;
+    unitEl.dataset.value = value;
+    void unitEl.offsetWidth; // force reflow before re-enabling the transitions
+    leafTopEl.classList.remove('no-transition');
+    leafBotEl.classList.remove('no-transition');
+  }, 400);
 }
 function updateFlipClockHMS(prefix, hh, mm, ss, animate){
   setFlipUnit(document.getElementById(prefix + '-hh'), String(hh).padStart(2,'0'), animate);
