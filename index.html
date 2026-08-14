@@ -755,7 +755,7 @@
     <div class="app-tabs" id="appTabs">
       <button class="app-tab-btn active" data-section="tracker">📿 Tracker</button>
       <button class="app-tab-btn" data-section="sports">🏃 Sports &amp; Diet</button>
-      <button class="app-tab-btn" data-section="focus">⏱️ Focus Timer</button>
+      <button class="app-tab-btn" data-section="focus">✅ Focus To-Do</button>
     </div>
 
     <div class="app-section" id="trackerSection">
@@ -810,6 +810,7 @@
       <div class="real-clock">
         <div class="real-clock-date" id="focusRealClockDate"></div>
         <div class="real-clock-time" id="focusRealClockTime"></div>
+        <button type="button" class="focus-expand-btn" id="focusRealClockExpandBtn">⛶ Fullscreen Clock</button>
       </div>
       <div class="sports-week-nav">
         <button id="focusPrevBtn">‹</button>
@@ -897,6 +898,12 @@
   </div>
   <div id="focusFullscreenClockHost"></div>
   <button class="focus-fullscreen-pause-btn" id="focusFullscreenPauseBtn">⏸</button>
+</div>
+
+<div class="focus-fullscreen-overlay hidden" id="focusRealFsOverlay">
+  <button class="focus-fullscreen-close" id="focusRealFsCloseBtn">✕</button>
+  <div class="focus-fullscreen-label" id="focusRealFsLabel"></div>
+  <div id="focusRealFsClockHost"></div>
 </div>
 
 <script>
@@ -3450,12 +3457,29 @@ function tickRealClock(){
   const t1 = document.getElementById('focusRealClockTime'); if(t1) t1.textContent = timeStr;
   const d2 = document.getElementById('focusFsRealClockDate'); if(d2) d2.textContent = dateStr;
   const t2 = document.getElementById('focusFsRealClockTime'); if(t2) t2.textContent = timeStr;
+  const label3 = document.getElementById('focusRealFsLabel'); if(label3) label3.textContent = dateStr;
+  updateFlipClockHMS('focusRealFs', now.getHours(), now.getMinutes(), now.getSeconds(), true);
 }
 function startRealClock(){
   if(_realClockInterval) return;
   tickRealClock();
   _realClockInterval = setInterval(tickRealClock, 1000);
 }
+
+/* ── Real clock's own fullscreen mode — independent of any running
+   Pomodoro session, just the live time blown up full-screen. ── */
+document.getElementById('focusRealFsClockHost').innerHTML = flipClockHTML('focusRealFs', 'big');
+function openFocusRealClockFullscreen(){
+  document.getElementById('focusRealFsOverlay').classList.remove('hidden');
+  const now = new Date();
+  document.getElementById('focusRealFsLabel').textContent = formatRealDate(now);
+  updateFlipClockHMS('focusRealFs', now.getHours(), now.getMinutes(), now.getSeconds(), false);
+}
+function closeFocusRealClockFullscreen(){
+  document.getElementById('focusRealFsOverlay')?.classList.add('hidden');
+}
+document.getElementById('focusRealClockExpandBtn').addEventListener('click', openFocusRealClockFullscreen);
+document.getElementById('focusRealFsCloseBtn').addEventListener('click', closeFocusRealClockFullscreen);
 
 /* ── API (mirrors apiGetFoodLog/apiSaveFoodLog) ── */
 async function apiGetFocusLog(user, date){
@@ -3702,14 +3726,14 @@ function setFlipUnit(unitEl, value, animate){
     inner.classList.remove('no-transition');
   }, 500);
 }
+function updateFlipClockHMS(prefix, hh, mm, ss, animate){
+  setFlipUnit(document.getElementById(prefix + '-hh'), String(hh).padStart(2,'0'), animate);
+  setFlipUnit(document.getElementById(prefix + '-mm'), String(mm).padStart(2,'0'), animate);
+  setFlipUnit(document.getElementById(prefix + '-ss'), String(ss).padStart(2,'0'), animate);
+}
 function updateFlipClock(prefix, totalSec, animate){
-  const s  = Math.max(0, Math.round(totalSec));
-  const hh = String(Math.floor(s / 3600)).padStart(2,'0');
-  const mm = String(Math.floor((s % 3600) / 60)).padStart(2,'0');
-  const ss = String(s % 60).padStart(2,'0');
-  setFlipUnit(document.getElementById(prefix + '-hh'), hh, animate);
-  setFlipUnit(document.getElementById(prefix + '-mm'), mm, animate);
-  setFlipUnit(document.getElementById(prefix + '-ss'), ss, animate);
+  const s = Math.max(0, Math.round(totalSec));
+  updateFlipClockHMS(prefix, Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60, animate);
 }
 
 /* ── Fullscreen clock ── */
@@ -3741,6 +3765,8 @@ document.addEventListener('keydown', e => {
   if(e.key !== 'Escape') return;
   const overlay = document.getElementById('focusFullscreenOverlay');
   if(overlay && !overlay.classList.contains('hidden')) closeFocusFullscreen();
+  const realOverlay = document.getElementById('focusRealFsOverlay');
+  if(realOverlay && !realOverlay.classList.contains('hidden')) closeFocusRealClockFullscreen();
 });
 
 /* ── Rendering ── */
