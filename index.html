@@ -10,6 +10,7 @@
 <title>Daily Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#12171A;
@@ -261,6 +262,10 @@
   .edit-actions{display:flex;gap:10px;justify-content:flex-end;}
   .edit-save-btn{padding:10px 24px;border-radius:999px;border:none;background:var(--teal);color:var(--check-mark);font-size:13px;font-weight:700;cursor:pointer;}
   .edit-cancel-btn{padding:10px 24px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer;}
+  .scope-choice-btn{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;text-align:left;transition:border-color .15s,background .15s;width:100%;font-family:'Inter',sans-serif;}
+  .scope-choice-btn:hover{border-color:var(--teal);background:rgba(82,191,152,0.06);}
+  .scope-choice-btn strong{font-size:14px;}
+  .scope-choice-btn span{font-size:12px;color:var(--ink-soft);}
   .edit-open-btn{font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;font-family:'IBM Plex Mono',monospace;letter-spacing:.04em;}
   .edit-open-btn:hover{border-color:var(--teal);color:var(--teal);}
   .edit-reset-btn{padding:10px 16px;border-radius:999px;border:1px solid var(--rose);background:transparent;color:var(--rose);font-size:12px;font-weight:600;cursor:pointer;font-family:'IBM Plex Mono',monospace;margin-right:auto;}
@@ -293,8 +298,14 @@
   .photo-day-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:600;}
   .photo-eye-btn{padding:5px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);font-size:12px;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:border-color .15s,color .15s;}
   .photo-eye-btn:hover{border-color:var(--teal);color:var(--teal);}
-  .photo-img-wrap{text-align:center;}
-  .photo-day img{width:100%;max-height:420px;border-radius:12px;object-fit:contain;display:block;margin:0 auto 12px;border:1px solid var(--line);background:#000;}
+  .photo-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;margin-bottom:12px;}
+  .photo-thumb{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#000;}
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer;}
+  .photo-thumb-remove{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,.65);color:#fff;font-size:13px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+  .photo-thumb-remove:hover{background:rgba(217,140,140,.9);}
+  .photo-thumb-remove:disabled{opacity:.5;cursor:default;}
+  .photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;z-index:999;padding:24px;cursor:zoom-out;}
+  .photo-lightbox img{max-width:100%;max-height:100%;border-radius:8px;object-fit:contain;}
   .photo-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:8px;}
   .photo-upload-btn{
     display:inline-block;padding:10px 24px;border-radius:999px;
@@ -303,14 +314,6 @@
     transition:background .15s;min-height:44px;line-height:1;
   }
   .photo-upload-btn:hover{background:rgba(82,191,152,0.09);}
-  .photo-remove-btn{
-    display:inline-block;padding:10px 20px;border-radius:999px;
-    border:1.5px dashed var(--rose);background:transparent;color:var(--rose);
-    font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;
-    transition:background .15s;min-height:44px;line-height:1;
-  }
-  .photo-remove-btn:hover{background:rgba(217,140,140,0.09);}
-  .photo-remove-btn:disabled{opacity:0.5;cursor:default;}
   .photo-empty{color:var(--ink-soft);font-size:13px;margin-bottom:12px;text-align:center;}
   .photo-status{font-size:11px;color:var(--ink-soft);margin-top:8px;font-family:'IBM Plex Mono',monospace;min-height:16px;text-align:center;}
   /* photo breakpoint folded into main mobile block below */
@@ -487,8 +490,8 @@
 
     /* Photo */
     .photo-day{padding:12px;}
-    .photo-day img{max-height:260px;}
-    .photo-upload-btn,.photo-remove-btn{width:100%;text-align:center;box-sizing:border-box;}
+    .photo-gallery{grid-template-columns:repeat(auto-fill,minmax(80px,1fr));}
+    .photo-upload-btn{width:100%;text-align:center;box-sizing:border-box;}
     .photo-actions{flex-direction:column;gap:8px;}
 
     /* Stats */
@@ -501,6 +504,146 @@
     .switchuser-link button{font-size:12px;min-height:40px;}
   }
 
+  /* ── App section switcher (Tracker / Sports & Diet) ── */
+  .app-tabs{display:flex;gap:8px;justify-content:center;margin:0 0 16px;}
+  .app-tab-btn{padding:8px 20px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:border-color .15s,color .15s,background .15s;}
+  .app-tab-btn.active{border-color:var(--teal);color:var(--teal);background:rgba(82,191,152,0.08);}
+  .app-section.hidden{display:none;}
+
+  /* ── Sports plan ── */
+  .sports-week-nav{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:14px;}
+  .sports-week-nav button{padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;}
+  .sports-week-nav .range{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink);}
+  .sports-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;}
+  .sports-actions button{padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);font-size:12.5px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+  .sports-actions button:hover{border-color:var(--teal);color:var(--teal);}
+  .sports-day-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;}
+  .sports-day-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .sports-day-name{font-weight:700;font-size:14px;}
+  .sports-day-name.today{color:var(--teal);}
+  .sports-day-intensity{font-size:10.5px;padding:2px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;letter-spacing:.04em;}
+  .sports-session-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line);}
+  .sports-session-row:first-of-type{border-top:none;}
+  .sports-session-check{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);background:transparent;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center;color:var(--check-mark);font-size:13px;}
+  .sports-session-check.checked{background:var(--teal);border-color:var(--teal);}
+  .sports-session-text{flex:1;min-width:0;}
+  .sports-session-label{font-size:14px;font-weight:700;letter-spacing:.01em;}
+  .sports-session-label.checked{text-decoration:line-through;color:var(--ink-soft);}
+  .sports-session-detail{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
+  .sports-session-stats{display:flex;gap:8px;margin-top:5px;flex-wrap:wrap;}
+  .sports-session-stat{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line);padding:3px 9px;border-radius:999px;letter-spacing:.02em;white-space:nowrap;}
+  .sports-session-stat.pace{color:var(--teal);border-color:rgba(82,191,152,0.35);}
+  .sports-empty{text-align:center;color:var(--ink-soft);font-size:13px;padding:24px 0;}
+
+  /* ── Sports plan editor modal ── */
+  .sports-edit-day{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;}
+  .sports-edit-day-head{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .sports-edit-day-head input[type=text]{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--ink);font-size:12.5px;width:140px;}
+  .sports-edit-session-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;}
+  .sports-edit-session-row input,.sports-edit-session-row select{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--ink);font-size:12.5px;}
+  .sports-edit-session-row select.sess-type{flex:1.3;min-width:118px;}
+  .sports-edit-session-row input.sess-label{flex:1.3;min-width:100px;}
+  .sports-edit-session-row input.sess-distance{flex:0.8;min-width:80px;}
+  .sports-edit-session-row input.sess-time{flex:0.9;min-width:90px;}
+  .sports-edit-session-row button{background:none;border:none;color:var(--rose);cursor:pointer;font-size:14px;padding:2px 6px;flex:none;}
+  .sports-add-session-btn{font-size:11.5px;padding:5px 12px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;}
+
+  /* ── Diet ── */
+  .diet-date-label{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);margin:16px 0 8px;}
+  .diet-target-row{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-bottom:1px dashed var(--line);border-radius:14px 14px 0 0;padding:10px 14px;margin-bottom:0;font-size:11.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .diet-target-row input{width:64px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:5px 8px;color:var(--ink);font-size:12px;text-align:center;}
+  .diet-total-bar{display:flex;gap:0;justify-content:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-top:none;border-radius:0 0 14px 14px;padding:14px 6px;margin-bottom:18px;}
+  .diet-total-item{text-align:center;flex:1;min-width:64px;padding:0 8px;border-left:1px solid var(--line);}
+  .diet-total-item:first-child{border-left:none;}
+  .diet-total-item .val{font-size:19px;font-weight:700;color:var(--teal);}
+  .diet-total-item .val .target{font-size:12px;font-weight:600;color:var(--ink-soft);}
+  .diet-total-item .lbl{font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;font-family:'IBM Plex Mono',monospace;margin-top:2px;}
+  .meal-slot{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px;}
+  .meal-slot-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .meal-slot-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--gold);font-family:'IBM Plex Mono',monospace;}
+  .meal-slot-kcal{font-size:11.5px;color:var(--ink-soft);}
+  .food-entry-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);}
+  .food-entry-row:first-of-type{border-top:none;}
+  .food-entry-name{font-size:13px;flex:1;min-width:0;}
+  .food-entry-macro{font-size:11.5px;color:var(--ink-soft);white-space:nowrap;font-family:'IBM Plex Mono',monospace;}
+  .food-entry-remove{background:none;border:none;color:var(--rose);cursor:pointer;font-size:13px;padding:2px 6px;flex:none;}
+  .food-add-row{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);align-items:center;}
+  .food-add-row select{flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--ink);font-size:12.5px;}
+  .food-add-row input{width:56px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--ink);font-size:12.5px;text-align:center;flex:none;}
+  .food-add-row button{padding:8px 14px;border-radius:8px;border:none;background:var(--teal);color:var(--check-mark);font-weight:700;font-size:12.5px;cursor:pointer;flex:none;}
+
+  .sports-add-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;}
+  .sports-add-row select{flex:1.4;min-width:130px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--ink);font-size:12.5px;}
+  .sports-add-row input{flex:0.8;min-width:90px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--ink);font-size:12.5px;text-align:center;}
+  .sports-add-row input.time-sub{flex:0.5;min-width:60px;}
+  .sports-add-row button{padding:8px 16px;border-radius:8px;border:none;background:var(--teal);color:var(--check-mark);font-weight:700;font-size:12.5px;cursor:pointer;flex:none;}
+  .manage-foods-btn{display:block;margin:0 auto 16px;font-size:12px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;font-family:'IBM Plex Mono',monospace;}
+  .food-def-row{display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--line);}
+  .food-def-row input{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--ink);font-size:12.5px;}
+  .food-def-row input.fd-name{flex:1 1 100%;min-width:0;}
+  .food-def-row input.fd-num{width:64px;}
+  .food-def-row input.fd-unit{flex:1;min-width:120px;}
+  .food-def-row .fd-num-label{font-size:10px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;margin-right:-4px;}
+  .food-def-row button{background:none;border:none;color:var(--rose);cursor:pointer;font-size:14px;padding:2px 6px;}
+
+  @media (max-width:640px){
+    .food-add-row{flex-wrap:wrap;}
+    .food-add-row select{flex-basis:100%;}
+    .diet-total-bar{row-gap:14px;}
+    .diet-total-item{flex-basis:30%;border-left:none;}
+    .sports-add-row select{flex-basis:100%;}
+    .sports-add-row input.time-sub{flex:1;}
+  }
+
+  /* ── Focus Timer ── */
+  .focus-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 16px;margin-bottom:16px;}
+  .focus-field-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;margin-bottom:6px;display:block;}
+  .focus-row{margin-bottom:14px;}
+  .focus-select,.focus-text-inp{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;color:var(--ink);font-family:'Inter',sans-serif;font-size:13.5px;padding:10px 12px;}
+  .focus-select:focus,.focus-text-inp:focus{outline:none;border-color:var(--teal);}
+  .focus-custom-row{display:flex;gap:8px;margin-top:8px;}
+  .focus-custom-row .focus-text-inp{flex:1.6;}
+  .focus-custom-row .focus-select{flex:1;}
+  .focus-duration-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .focus-preset-btn{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);font-size:12.5px;font-weight:600;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:border-color .15s,color .15s,background .15s;}
+  .focus-preset-btn.active{border-color:var(--teal);color:var(--teal);background:rgba(82,191,152,0.1);}
+  .focus-duration-inp{width:76px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;color:var(--ink);font-size:13.5px;padding:9px 10px;text-align:center;font-family:'IBM Plex Mono',monospace;}
+  .focus-duration-inp:focus{outline:none;border-color:var(--teal);}
+  .focus-duration-suffix{font-size:12px;color:var(--ink-soft);}
+  .focus-start-btn{width:100%;padding:13px;border-radius:999px;border:none;background:var(--teal);color:var(--check-mark);font-family:'Inter',sans-serif;font-size:14.5px;font-weight:700;cursor:pointer;margin-top:16px;transition:opacity .15s;}
+  .focus-start-btn:hover:not(:disabled){opacity:0.88;}
+  .focus-start-btn:disabled{opacity:0.4;cursor:default;}
+
+  .focus-running-card{text-align:center;}
+  .focus-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);margin-bottom:16px;}
+  .focus-display{font-family:'IBM Plex Mono',monospace;font-size:clamp(40px,10vw,64px);font-weight:600;color:var(--teal);letter-spacing:.02em;line-height:1;margin-bottom:16px;}
+  .focus-display.paused{color:var(--gold);}
+  .focus-progress-track{height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-bottom:20px;}
+  .focus-progress-fill{height:100%;background:var(--teal);border-radius:999px;transition:width .3s linear;}
+  .focus-controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .focus-ctrl-btn{padding:10px 22px;border-radius:999px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:background .15s,border-color .15s;}
+  .focus-ctrl-btn.primary{border-color:var(--teal);color:var(--teal);}
+  .focus-ctrl-btn.primary:hover{background:rgba(82,191,152,0.1);}
+  .focus-ctrl-btn.stop{border-color:var(--sky);color:var(--sky);}
+  .focus-ctrl-btn.stop:hover{background:rgba(121,172,222,0.1);}
+  .focus-ctrl-btn.cancel{border-color:var(--rose);color:var(--rose);}
+  .focus-ctrl-btn.cancel:hover{background:rgba(217,140,140,0.1);}
+
+  .focus-done-banner{background:var(--teal-light);border:1px solid var(--teal);border-radius:12px;padding:12px 16px;text-align:center;color:var(--ink);font-size:13.5px;margin-bottom:16px;}
+
+  .focus-total-row{display:flex;justify-content:center;margin-bottom:16px;}
+  .focus-group{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:10px;}
+  .focus-group-head{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+  .focus-group-head .act-icon{width:28px;height:28px;font-size:14px;border-radius:8px;}
+  .focus-group-label{flex:1;font-size:13.5px;font-weight:600;}
+  .focus-group-total{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--teal);font-weight:600;}
+
+  @media(max-width:520px){
+    .focus-card{padding:14px 12px;}
+    .focus-display{font-size:clamp(34px,14vw,52px);}
+    .focus-ctrl-btn{padding:9px 16px;font-size:12.5px;}
+    .focus-custom-row{flex-direction:column;}
+  }
 </style>
 </head>
 <body>
@@ -567,27 +710,71 @@
 
   <div class="app" id="app">
     <div class="switcher" id="switcher"></div>
-    <div class="weeknav">
-      <button class="navbtn" id="prevBtn">‹</button>
-      <div class="weekrange-wrap">
-        <label class="weekrange" for="datePicker" id="weekRange">Loading…</label>
-        <input type="date" id="datePicker">
-      </div>
-      <button class="navbtn" id="nextBtn">›</button>
-      <button class="todaybtn" id="todayBtn">This week</button>
+    <div class="app-tabs" id="appTabs">
+      <button class="app-tab-btn active" data-section="tracker">📿 Tracker</button>
+      <button class="app-tab-btn" data-section="sports">🏃 Sports &amp; Diet</button>
+      <button class="app-tab-btn" data-section="focus">⏱️ Focus Timer</button>
     </div>
-    <div id="errorHost"></div>
-    <div class="quote-card" id="quoteCard"></div>
-    <div class="duo-medallions" id="duoMedallions"></div>
-    <div class="tablecard">
-      <div class="scrollx">
-        <div id="tableHost" class="loading">Loading your week…</div>
+
+    <div class="app-section" id="trackerSection">
+      <div class="weeknav">
+        <button class="navbtn" id="prevBtn">‹</button>
+        <div class="weekrange-wrap">
+          <label class="weekrange" for="datePicker" id="weekRange">Loading…</label>
+          <input type="date" id="datePicker">
+        </div>
+        <button class="navbtn" id="nextBtn">›</button>
+        <button class="todaybtn" id="todayBtn">This week</button>
       </div>
+      <div id="errorHost"></div>
+      <div class="quote-card" id="quoteCard"></div>
+      <div class="duo-medallions" id="duoMedallions"></div>
+      <div class="tablecard">
+        <div class="scrollx">
+          <div id="tableHost" class="loading">Loading your week…</div>
+        </div>
+      </div>
+      <div id="undoHost"></div>
+      <div id="resetHost"></div>
+      <div id="photoDayHost"></div>
+      <div class="duo-stats" id="duoStats"></div>
     </div>
-    <div id="undoHost"></div>
-    <div id="resetHost"></div>
-    <div id="photoDayHost"></div>
-    <div class="duo-stats" id="duoStats"></div>
+
+    <div class="app-section hidden" id="sportsSection">
+      <div class="switcher-modes" id="sportsModeSwitch" style="justify-content:center;margin-bottom:12px;">
+        <button class="mode-btn active" data-smode="day">Day</button>
+        <button class="mode-btn" data-smode="weekly">Weekly</button>
+      </div>
+      <div class="sports-week-nav">
+        <button id="sportsPrevBtn">‹</button>
+        <span class="range" id="sportsWeekRange">Loading…</span>
+        <button id="sportsNextBtn">›</button>
+      </div>
+      <div class="sports-actions">
+        <button id="sportsEditBtn">✏️ Edit this week's plan</button>
+        <button id="sportsUploadBtn">📤 Upload Excel</button>
+        <input type="file" id="sportsUploadInput" accept=".xlsx,.xls" style="display:none">
+      </div>
+      <div id="sportsPlanHost"></div>
+
+      <div class="diet-date-label" id="dietDateLabel"></div>
+      <div class="diet-target-row" id="dietTargetRow"></div>
+      <div class="diet-total-bar" id="dietTotalBar"></div>
+      <button class="manage-foods-btn" id="manageFoodsBtn">🍎 Manage my foods</button>
+      <div id="dietHost"></div>
+    </div>
+
+    <div class="app-section hidden" id="focusSection">
+      <div class="sports-week-nav">
+        <button id="focusPrevBtn">‹</button>
+        <span class="range" id="focusDateRange">Loading…</span>
+        <button id="focusNextBtn">›</button>
+        <button class="todaybtn" id="focusTodayBtn" style="margin-left:6px">Today</button>
+      </div>
+      <div id="focusTimerHost"></div>
+      <div id="focusSummaryHost"></div>
+    </div>
+
     <div class="switchuser-link"><button id="logoutBtn">Sign out</button></div>
   </div>
 </div>
@@ -611,11 +798,55 @@
   </div>
 </div>
 
+<div class="modal-overlay hidden" id="scopeModalOverlay">
+  <div class="edit-modal" style="max-width:420px;">
+    <h3>Apply these changes to…</h3>
+    <p style="color:var(--ink-soft);font-size:13px;margin:8px 0 20px;line-height:1.5;">You renamed, rescheduled, or removed an activity. Choose how far back this should apply.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="scope-choice-btn" id="scopeFutureBtn">
+        <strong>From today onward</strong>
+        <span>Past days keep showing things exactly as they were</span>
+      </button>
+      <button class="scope-choice-btn" id="scopeAllBtn">
+        <strong>Entire history</strong>
+        <span>Also changes how past days are shown and calculated</span>
+      </button>
+    </div>
+    <div class="edit-actions" style="margin-top:16px;">
+      <button class="edit-cancel-btn" id="scopeCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="sportsEditModalOverlay">
+  <div class="edit-modal">
+    <h3>Edit this week's plan</h3>
+    <div id="sportsEditDays"></div>
+    <div class="edit-actions">
+      <button class="edit-cancel-btn" id="sportsEditCancelBtn">Cancel</button>
+      <button class="edit-save-btn" id="sportsEditSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="foodDefModalOverlay">
+  <div class="edit-modal">
+    <h3>My Foods</h3>
+    <p style="color:var(--ink-soft);font-size:12.5px;margin:4px 0 14px;">Set the calories, protein, fat, fiber and carbs per serving once — then just pick from the list when logging a meal.</p>
+    <div id="foodDefRows"></div>
+    <button class="edit-add-btn" id="foodDefAddBtn">+ Add food</button>
+    <div class="edit-actions">
+      <button class="edit-cancel-btn" id="foodDefCancelBtn">Cancel</button>
+      <button class="edit-save-btn" id="foodDefSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ═══════════════════════════════════════════════
    CONFIG
    ═══════════════════════════════════════════════ */
-const API_URL      = "https://script.google.com/macros/s/AKfycbzswHXj006I7-VIh5Kw0OZobEPtwanygQ0ccMQJdNgRF8VSCgcn9855IZ6TFcAgiddISg/exec";
+const API_URL      = "https://script.google.com/macros/s/AKfycbyjAOE8Zb6eO7rG974F8wdsnk9Ovy_yTr3RpmCWAPytl5KPkA8gJO2HrU6VScoKG4ZY/exec";
 const START_DATE   = '2026-06-25'; // no tracking before this date
 const IS_TESTER    = true;
 const LS_NS        = IS_TESTER ? 'tst:' : '';
@@ -697,22 +928,9 @@ function getActivities(user){
   return user === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
 }
 
-/* ═══════════════════════════════════════════════
-   LABEL HISTORY — add entries here if you rename an activity
-   Example: "ibrahim_electronics": [{ until:"2026-06-20", label:"Old Name" }]
-   ═══════════════════════════════════════════════ */
-const LABEL_HISTORY = {};
-
-function getLabel(actId, dateISO, fallback){
-  const history = LABEL_HISTORY[actId];
-  if(history){
-    const sorted = [...history].sort((a,b) => b.until.localeCompare(a.until));
-    for(const e of sorted){ if(dateISO <= e.until) return e.label; }
-  }
-  // Always prefer the saved/custom label (fallback) over hardcoded defaults.
-  // The hardcoded lookup was causing user label-edits to be silently ignored.
-  return fallback || actId;
-}
+// Per-activity historical versioning now lives on the activity object itself
+// (act.history, populated by the "entire history vs. from today only" prompt
+// in the edit modal) and is resolved via resolveActivityForDate() — see below.
 
 /* ═══════════════════════════════════════════════
    CONSTANTS
@@ -752,14 +970,30 @@ function getActScheduleDays(act){
   return [0,1,2,3,4,5,6];
 }
 function getActMonthDay(act){ return act.monthDay || (act.monthDay1Only ? 1 : 1); }
+// Merges in whichever historical snapshot of `act` was in effect on
+// dateISO — lets edits made via "from today onward" leave past days
+// showing the activity exactly as it was before the edit.
+function resolveActivityForDate(act, dateISO){
+  if(act.history && act.history.length){
+    for(const h of act.history){
+      if(dateISO <= h.until) return { ...act, ...h };
+    }
+  }
+  return act;
+}
+
 function actApplies(act, d){
+  const iso = formatISO(d);
+  if(act.effectiveFrom && iso < act.effectiveFrom) return false;
+  if(act.discontinuedFrom && iso >= act.discontinuedFrom) return false;
+  const a  = resolveActivityForDate(act, iso);
   const di = dayIdx(d);
-  if(act.monthDay)        return d.getDate() === act.monthDay;
-  if(act.monthDay1Only)   return d.getDate() === 1;
-  if(act.monthDayFirst)   return d.getDate() <= act.monthDayFirst;
-  if(act.monthDayLast){   const last = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); const n = typeof act.monthDayLast === 'number' ? act.monthDayLast : 1; return d.getDate() >= last - (n - 1); }
-  if(act.scheduleDays && act.scheduleDays.length < 7) return act.scheduleDays.includes(di);
-  if(act.fridayOnly)     return di === 4;
+  if(a.monthDay)        return d.getDate() === a.monthDay;
+  if(a.monthDay1Only)   return d.getDate() === 1;
+  if(a.monthDayFirst)   return d.getDate() <= a.monthDayFirst;
+  if(a.monthDayLast){   const last = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); const n = typeof a.monthDayLast === 'number' ? a.monthDayLast : 1; return d.getDate() >= last - (n - 1); }
+  if(a.scheduleDays && a.scheduleDays.length < 7) return a.scheduleDays.includes(di);
+  if(a.fridayOnly)     return di === 4;
   return true;
 }
 
@@ -817,14 +1051,15 @@ let photoVisible = true;
 let _noteSaveTimer = null;
 const apiCache   = {};
 const pendingSaves = new Set(); // "who:iso" — blocks applyWeekData from overwriting in-flight saves
+const pendingDiffs = {}; // "who:iso" -> { activityId: checked } accumulated since the last successful save
 
 /* ═══════════════════════════════════════════════
    API LAYER
    ═══════════════════════════════════════════════ */
-function fetchWithTimeout(url, ms = 12000){
+function fetchWithTimeout(url, ms = 12000, opts = {}){
   const ctrl = new AbortController();
   const tid  = setTimeout(() => ctrl.abort(), ms);
-  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(tid));
+  return fetch(url, { signal: ctrl.signal, ...opts }).finally(() => clearTimeout(tid));
 }
 
 function configured(){
@@ -868,13 +1103,23 @@ async function apiGetWeekBoth(start, end){
   return json;
 }
 
-async function apiSaveDay(user, date, activities){
-  const url  = `${API_URL}?action=saveDay&user=${encodeURIComponent(user)}&date=${date}&activities=${encodeURIComponent(JSON.stringify(activities))}&token=${sessionToken}`;
+async function apiSaveDay(user, date, diffs){
+  const url  = `${API_URL}?action=saveDay&user=${encodeURIComponent(user)}&date=${date}&diffs=${encodeURIComponent(JSON.stringify(diffs))}&token=${sessionToken}`;
   const res  = await fetchWithTimeout(url);
   if(!res.ok) throw new Error('Network error ' + res.status);
   const json = await res.json();
   if(!json.ok && json.error === 'Unauthorized'){ handleUnauthorized(); throw new Error('Session expired'); }
   if(!json.ok) throw new Error(json.error || 'Save failed');
+  return json;
+}
+
+async function apiResetDay(user, date){
+  const url  = `${API_URL}?action=resetDay&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
+  const res  = await fetchWithTimeout(url);
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok && json.error === 'Unauthorized'){ handleUnauthorized(); throw new Error('Session expired'); }
+  if(!json.ok) throw new Error(json.error || 'Reset failed');
   return json;
 }
 
@@ -919,8 +1164,8 @@ async function apiSaveAnote(user, date, actId, text){
   }catch(e){}
 }
 
-async function apiDeletePhoto(user, date){
-  const url = `${API_URL}?action=deletePhoto&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
+async function apiDeletePhoto(user, date, photoId){
+  const url = `${API_URL}?action=deletePhoto&user=${encodeURIComponent(user)}&date=${date}&photoId=${encodeURIComponent(photoId)}&token=${sessionToken}`;
   try{
     const res  = await fetchWithTimeout(url, 20000);
     if(!res.ok) return false;
@@ -929,13 +1174,13 @@ async function apiDeletePhoto(user, date){
   }catch(e){ return false; }
 }
 
-async function apiGetPhoto(user, date){
-  const url = `${API_URL}?action=getPhoto&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
+async function apiGetPhotos(user, date){
+  const url = `${API_URL}?action=getPhotos&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
   try{
     const res  = await fetchWithTimeout(url);
     if(!res.ok) return null;
     const json = await res.json();
-    return json.ok ? (json.url || null) : null;
+    return json.ok ? (json.photos || []) : null;
   }catch(e){ return null; }
 }
 
@@ -950,12 +1195,25 @@ function fixDriveUrl(url){
     return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w720';
   return url;
 }
-function localGetPhotoUrl(user, iso){ try{ return fixDriveUrl(localStorage.getItem(`${LS_NS}photo:${user}:${iso}`) || null); }catch(e){ return null; } }
-function localSetPhotoUrl(user, iso, url){
+function localGetPhotos(user, iso){
   try{
-    if(url) localStorage.setItem(`${LS_NS}photo:${user}:${iso}`, url);
-    else localStorage.removeItem(`${LS_NS}photo:${user}:${iso}`);
+    const raw = localStorage.getItem(`${LS_NS}photos:${user}:${iso}`);
+    if(raw) return JSON.parse(raw).map(p => ({ id: p.id, url: fixDriveUrl(p.url) }));
+    // migrate the old single-photo key, if present
+    const legacy = localStorage.getItem(`${LS_NS}photo:${user}:${iso}`);
+    if(legacy) return [{ id: 'legacy', url: fixDriveUrl(legacy) }];
+    return [];
+  }catch(e){ return []; }
+}
+function localSetPhotos(user, iso, photos){
+  try{
+    if(photos && photos.length) localStorage.setItem(`${LS_NS}photos:${user}:${iso}`, JSON.stringify(photos));
+    else localStorage.removeItem(`${LS_NS}photos:${user}:${iso}`);
+    localStorage.removeItem(`${LS_NS}photo:${user}:${iso}`);
   }catch(e){}
+}
+function newPhotoId(){
+  return (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}`).replace(/[^a-zA-Z0-9_-]/g,'');
 }
 
 function resizeImage(file, maxPx = 720){
@@ -982,24 +1240,42 @@ function resizeImage(file, maxPx = 720){
   });
 }
 
-async function uploadToDrive(user, date, base64, onProgress){
+async function uploadToDrive(user, date, base64, photoId, onProgress){
   const CHUNK   = 3500;
   const BATCH   = 1;     // sequential — prevents sheet race conditions in GAS
   const chunks  = [];
   for(let i = 0; i < base64.length; i += CHUNK) chunks.push(base64.slice(i, i + CHUNK));
   const total   = chunks.length;
-  const session = `${user.replace(/\W/g,'_')}_${date}_${Date.now()}`;
+  const session = `${user.replace(/\W/g,'_')}_${date}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
   let sent      = 0;
   let finalUrl  = null;
 
   async function sendChunk(idx){
-    const url  = `${API_URL}?action=uploadChunk&session=${encodeURIComponent(session)}&index=${idx}&total=${total}&user=${encodeURIComponent(user)}&date=${date}&chunk=${encodeURIComponent(chunks[idx])}&token=${sessionToken}`;
-    const res  = await fetch(url);
-    if(!res.ok) throw new Error(`Server error ${res.status} on chunk ${idx}`);
-    const json = await res.json();
-    if(!json.ok) throw new Error(json.error || `Chunk ${idx} failed`);
-    sent++; onProgress(sent, total);
-    if(json.done) finalUrl = json.url;
+    // Chunk payload goes in the POST body, not the URL — long GET query strings
+    // get silently truncated/mangled by some mobile carrier proxies. FormData
+    // (multipart) is used instead of URLSearchParams: on one real device the
+    // exact same middle chunk came back truncated to 7 chars on every retry,
+    // which URLSearchParams-as-fetch-body is a known WebKit trouble spot for —
+    // a deterministic encoding bug, not transient network flakiness. FormData
+    // uses a completely different wire encoding, so retries actually help here.
+    const url = `${API_URL}?action=uploadChunk&session=${encodeURIComponent(session)}&index=${idx}&total=${total}&user=${encodeURIComponent(user)}&date=${date}&photoId=${encodeURIComponent(photoId)}&token=${sessionToken}`;
+    let lastErr;
+    for(let attempt = 1; attempt <= 3; attempt++){
+      try{
+        const body = new FormData();
+        body.append('chunk', chunks[idx]);
+        const res  = await fetch(url, { method: 'POST', body });
+        if(!res.ok) throw new Error(`Server error ${res.status} on chunk ${idx}`);
+        const json = await res.json();
+        if(!json.ok) throw new Error(json.error || `Chunk ${idx} failed`);
+        sent++; onProgress(sent, total);
+        if(json.done) finalUrl = json.url;
+        return;
+      }catch(err){
+        lastErr = err;
+      }
+    }
+    throw lastErr;
   }
 
   // All chunks except last — parallel batches
@@ -1014,19 +1290,23 @@ async function uploadToDrive(user, date, base64, onProgress){
   return finalUrl;
 }
 
-function buildPhotoContent(photoUrl, iso){
-  const hasPhoto = !!photoUrl;
+function buildPhotoContent(photos, iso){
+  const hasPhotos = photos.length > 0;
+  const gallery = hasPhotos
+    ? `<div class="photo-gallery" id="photoGallery" style="display:${photoVisible?'grid':'none'}">
+        ${photos.map(p => `
+          <div class="photo-thumb" data-id="${escapeHtml(p.id)}">
+            <img src="${p.url}" alt="Photo" loading="lazy" data-full="${p.url}">
+            <button class="photo-thumb-remove" data-id="${escapeHtml(p.id)}" title="Remove">✕</button>
+          </div>`).join('')}
+       </div>`
+    : `<div class="photo-empty" id="photoEmpty">No photos yet for today</div>`;
   return `
-    ${hasPhoto
-      ? `<div class="photo-img-wrap" id="photoImgWrap" style="display:${photoVisible?'block':'none'}">
-           <img src="${photoUrl}" alt="Photo of the day" loading="lazy">
-         </div>`
-      : `<div class="photo-empty" id="photoEmpty">No photo yet for today</div>`}
+    ${gallery}
     <div class="photo-actions">
-      <label class="photo-upload-btn">${hasPhoto ? '🔄 Change photo' : '📷 Add a photo'}
-        <input type="file" accept="image/*" capture="environment" style="display:none" id="photoInput">
+      <label class="photo-upload-btn">📷 Add photo${photos.length ? 's' : ''}
+        <input type="file" accept="image/*" multiple style="display:none" id="photoInput">
       </label>
-      ${hasPhoto ? `<button class="photo-remove-btn" id="photoRemoveBtn">🗑 Remove</button>` : ''}
     </div>
     <div class="photo-status" id="photoStatus"></div>`;
 }
@@ -1036,9 +1316,9 @@ async function renderPhotoDay(){
   if(viewMode !== 'daily'){ host.innerHTML = ''; return; }
   const iso = formatISO(selectedDate);
 
-  let photoUrl = localGetPhotoUrl(currentUser, iso);
+  let photos = localGetPhotos(currentUser, iso);
 
-  const eyeBtn = photoUrl
+  const eyeBtn = photos.length
     ? `<button class="photo-eye-btn" id="photoEyeBtn">${photoVisible ? '👁 Hide' : '👁 Show'}</button>`
     : '';
 
@@ -1047,48 +1327,64 @@ async function renderPhotoDay(){
       <span class="photo-day-label">📸 Photo of the Day</span>
       ${eyeBtn}
     </div>
-    <div id="photoContent">${photoUrl ? buildPhotoContent(photoUrl, iso) : '<div class="photo-status">Loading…</div>'}</div>
+    <div id="photoContent">${buildPhotoContent(photos, iso)}</div>
   </div>`;
 
-  wireEyeBtn();
-  wireUploadInput(iso);
-  wireRemoveBtn(iso);
+  wirePhotoContent(iso);
 
-  // Fetch from server in background
+  // Fetch from server in background — trust it as the source of truth once it answers
   if(configured()){
-    const serverUrl = fixDriveUrl(await apiGetPhoto(currentUser, iso));
-    if(serverUrl && serverUrl !== photoUrl){
-      photoUrl = serverUrl;
-      localSetPhotoUrl(currentUser, iso, serverUrl);
+    const serverPhotos = await apiGetPhotos(currentUser, iso);
+    if(serverPhotos && JSON.stringify(serverPhotos) !== JSON.stringify(photos)){
+      photos = serverPhotos.map(p => ({ id: p.id, url: fixDriveUrl(p.url) }));
+      localSetPhotos(currentUser, iso, photos);
       const content = document.getElementById('photoContent');
-      if(content){ content.innerHTML = buildPhotoContent(serverUrl, iso); wireUploadInput(iso); wireRemoveBtn(iso); }
+      if(content) content.innerHTML = buildPhotoContent(photos, iso);
       const header = document.querySelector('.photo-day-header');
-      if(header && !header.querySelector('.photo-eye-btn')){
-        header.insertAdjacentHTML('beforeend', `<button class="photo-eye-btn" id="photoEyeBtn">${photoVisible?'👁 Hide':'👁 Show'}</button>`);
-        wireEyeBtn();
+      if(header){
+        const existingEye = header.querySelector('.photo-eye-btn');
+        if(photos.length && !existingEye){
+          header.insertAdjacentHTML('beforeend', `<button class="photo-eye-btn" id="photoEyeBtn">${photoVisible?'👁 Hide':'👁 Show'}</button>`);
+        } else if(!photos.length && existingEye){
+          existingEye.remove();
+        }
       }
-    } else if(!photoUrl){
-      const content = document.getElementById('photoContent');
-      if(content){ content.innerHTML = buildPhotoContent(null, iso); wireUploadInput(iso); wireRemoveBtn(iso); }
+      wirePhotoContent(iso);
     }
-  } else if(!photoUrl){
-    const content = document.getElementById('photoContent');
-    if(content){ content.innerHTML = buildPhotoContent(null, iso); wireUploadInput(iso); wireRemoveBtn(iso); }
   }
 }
 
-function wireRemoveBtn(iso){
-  const btn = document.getElementById('photoRemoveBtn');
-  if(!btn) return;
-  btn.addEventListener('click', async () => {
-    if(!confirm('Remove today\'s photo?')) return;
-    btn.disabled = true;
-    btn.textContent = 'Removing…';
-    if(configured()) await apiDeletePhoto(currentUser, iso);
-    localSetPhotoUrl(currentUser, iso, null);
-    photoVisible = true;
-    renderPhotoDay();
-  });
+function wirePhotoContent(iso){
+  wireEyeBtn();
+  wireUploadInput(iso);
+  wireGalleryEvents(iso);
+}
+
+function wireGalleryEvents(iso){
+  const gallery = document.getElementById('photoGallery');
+  if(!gallery) return;
+  gallery.querySelectorAll('img[data-full]').forEach(img =>
+    img.addEventListener('click', () => openLightbox(img.dataset.full))
+  );
+  gallery.querySelectorAll('.photo-thumb-remove').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      if(!confirm('Remove this photo?')) return;
+      btn.disabled = true;
+      const photoId = btn.dataset.id;
+      if(configured()) await apiDeletePhoto(currentUser, iso, photoId);
+      const remaining = localGetPhotos(currentUser, iso).filter(p => p.id !== photoId);
+      localSetPhotos(currentUser, iso, remaining);
+      renderPhotoDay();
+    })
+  );
+}
+
+function openLightbox(url){
+  const box = document.createElement('div');
+  box.className = 'photo-lightbox';
+  box.innerHTML = `<img src="${url}" alt="Photo">`;
+  box.addEventListener('click', () => box.remove());
+  document.body.appendChild(box);
 }
 
 function wireEyeBtn(){
@@ -1097,8 +1393,8 @@ function wireEyeBtn(){
   btn.addEventListener('click', () => {
     photoVisible = !photoVisible;
     btn.textContent = photoVisible ? '👁 Hide' : '👁 Show';
-    const wrap = document.getElementById('photoImgWrap');
-    if(wrap) wrap.style.display = photoVisible ? 'block' : 'none';
+    const gallery = document.getElementById('photoGallery');
+    if(gallery) gallery.style.display = photoVisible ? 'grid' : 'none';
   });
 }
 
@@ -1106,24 +1402,36 @@ function wireUploadInput(iso){
   const input = document.getElementById('photoInput');
   if(!input) return;
   input.addEventListener('change', async ev => {
-    const file = ev.target.files[0];
-    if(!file) return;
+    const files = Array.from(ev.target.files || []);
+    if(!files.length) return;
     const status = document.getElementById('photoStatus');
     const label  = input.closest('label');
     if(label) label.style.pointerEvents = 'none';
-    status.textContent = 'Resizing image…';
-    try{
-      const base64 = await resizeImage(file);
-      const imgUrl = await uploadToDrive(currentUser, iso, base64, (done, total) => {
-        status.textContent = `Uploading… ${done}/${total} chunks`;
-      });
-      localSetPhotoUrl(currentUser, iso, imgUrl);
-      status.textContent = '✓ Saved to Google Drive';
-      setTimeout(() => { photoVisible = true; renderPhotoDay(); }, 800);
-    }catch(err){
-      status.textContent = '⚠ ' + err.message;
-      if(label) label.style.pointerEvents = '';
+    photoVisible = true;
+
+    for(let i = 0; i < files.length; i++){
+      status.textContent = files.length > 1
+        ? `Resizing image ${i+1}/${files.length}…`
+        : 'Resizing image…';
+      try{
+        const base64  = await resizeImage(files[i]);
+        const photoId = newPhotoId();
+        const imgUrl  = await uploadToDrive(currentUser, iso, base64, photoId, (done, total) => {
+          status.textContent = files.length > 1
+            ? `Uploading ${i+1}/${files.length}… ${done}/${total} chunks`
+            : `Uploading… ${done}/${total} chunks`;
+        });
+        const current = localGetPhotos(currentUser, iso);
+        current.push({ id: photoId, url: imgUrl });
+        localSetPhotos(currentUser, iso, current);
+      }catch(err){
+        status.textContent = '⚠ ' + err.message;
+        if(label) label.style.pointerEvents = '';
+        return;
+      }
     }
+    status.textContent = '✓ Saved to Google Drive';
+    setTimeout(() => renderPhotoDay(), 800);
   });
 }
 
@@ -1157,14 +1465,35 @@ function localSetNote(user, iso, actId, text){
   anoteDebounce[_k] = setTimeout(() => apiSaveAnote(user, iso, actId, text), 500);
 }
 async function loadUserConfigFromBackend(user){
+  // Local storage is a fast cache for instant rendering, not the source of
+  // truth — always check the server for the current activity list/categories.
+  // The old version skipped this fetch entirely once ANY local copy existed,
+  // so a device that never happened to be the one an edit was made on stayed
+  // frozen on its first-ever snapshot forever, showing a completely
+  // different activity list (old names, old schedule) than other devices
+  // even though the "current" version had moved on.
+  const localActivitiesRaw = localStorage.getItem(`${LS_NS}custom_activities:${user}`);
+  const localCategoriesRaw = localStorage.getItem(`${LS_NS}custom_categories`);
+
   const cfg = await apiGetUserConfig(user);
-  if(!cfg) return;
-  // Backend is a fallback for first-time/new-device load only.
-  // Never overwrite existing local data — local edits always take priority.
-  if(cfg.activities && !localStorage.getItem(`${LS_NS}custom_activities:${user}`))
-    localStorage.setItem(`${LS_NS}custom_activities:${user}`, JSON.stringify(cfg.activities));
-  if(cfg.categories && !localStorage.getItem(`${LS_NS}custom_categories`))
-    localStorage.setItem(`${LS_NS}custom_categories`, JSON.stringify(cfg.categories));
+  if(!cfg) return false;
+
+  let changed = false;
+  if(cfg.activities){
+    const serialized = JSON.stringify(cfg.activities);
+    if(serialized !== localActivitiesRaw){
+      localStorage.setItem(`${LS_NS}custom_activities:${user}`, serialized);
+      changed = true;
+    }
+  }
+  if(cfg.categories){
+    const serialized = JSON.stringify(cfg.categories);
+    if(serialized !== localCategoriesRaw){
+      localStorage.setItem(`${LS_NS}custom_categories`, serialized);
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 function clearLocalToggleCache(){
@@ -1172,7 +1501,7 @@ function clearLocalToggleCache(){
   for(let i = 0; i < localStorage.length; i++){
     const k = localStorage.key(i);
     if(!k) continue;
-    if(k.startsWith(`${LS_NS}tracker:`) || k.startsWith(`${LS_NS}photo:`)) toDelete.push(k);
+    if(k.startsWith(`${LS_NS}tracker:`) || k.startsWith(`${LS_NS}photo:`) || k.startsWith(`${LS_NS}photos:`)) toDelete.push(k);
   }
   toDelete.forEach(k => localStorage.removeItem(k));
 }
@@ -1273,9 +1602,12 @@ async function selectUser(name){
   document.getElementById('app').classList.add('visible');
   document.getElementById('stickyNote').style.display = 'flex';
   renderSwitcher();
-  await loadUserConfigFromBackend(name);
+  // Run in parallel — loadWeek() doesn't depend on the user-config fallback,
+  // so there's no reason to serialize two slow Apps Script round trips.
+  loadUserConfigFromBackend(name).then(() => render());
   loadWeek();
   loadStickyFromBackend(name, formatISO(selectedDate));
+  initFocusTimer();
 }
 
 /* ═══════════════════════════════════════════════
@@ -1347,9 +1679,24 @@ const EMOJIS = [
 
 function openEditModal(){
   document.getElementById('editModalTitle').textContent = `Edit ${currentUser}'s Activities`;
-  renderEditRows(getActivities(currentUser));
+  // Activities already discontinued (removed "from today onward" in an
+  // earlier session) stay in storage for historical display but shouldn't
+  // clutter the edit list — there's nothing left to edit on them.
+  renderEditRows(getActivities(currentUser).filter(a => !a.discontinuedFrom));
   renderCustomCatChips();
   document.getElementById('editModalOverlay').classList.remove('hidden');
+}
+
+// Resolves to 'future', 'all', or null (cancelled).
+function askEditScope(){
+  return new Promise(resolve => {
+    const overlay = document.getElementById('scopeModalOverlay');
+    overlay.classList.remove('hidden');
+    const cleanup = val => { overlay.classList.add('hidden'); resolve(val); };
+    document.getElementById('scopeFutureBtn').onclick = () => cleanup('future');
+    document.getElementById('scopeAllBtn').onclick    = () => cleanup('all');
+    document.getElementById('scopeCancelBtn').onclick = () => cleanup(null);
+  });
 }
 
 function renderEditRows(acts){
@@ -1501,10 +1848,56 @@ document.getElementById('editAddBtn').addEventListener('click', () => {
   a.push({ id:`${currentUser.toLowerCase()}_custom_${Date.now()}`, icon:'⭐', label:'New Activity', time:'', cat:'worship' });
   renderEditRows(a);
 });
-document.getElementById('editSaveBtn').addEventListener('click', () => {
+const EDIT_TRACKED_FIELDS = ['label','time','cat','icon','scheduleDays','monthDay','monthDayFirst','monthDayLast','fridayOnly','monthDay1Only'];
+
+document.getElementById('editSaveBtn').addEventListener('click', async () => {
   try{
-    const sorted = sortActivitiesByTime(getCurrentEditedActivities());
-    // Track which hardcoded activities were removed so auto-append skips them.
+    const allBefore    = getActivities(currentUser);
+    const activeBefore = allBefore.filter(a => !a.discontinuedFrom);
+    const carryForward = allBefore.filter(a => a.discontinuedFrom); // untouched this session
+    const beforeById   = Object.fromEntries(activeBefore.map(a => [a.id, a]));
+
+    let sorted = sortActivitiesByTime(getCurrentEditedActivities());
+    const sortedIds = new Set(sorted.map(a => a.id));
+
+    const changedIds = new Set();
+    sorted.forEach(a => {
+      const old = beforeById[a.id];
+      if(!old) return; // brand new — handled separately below
+      if(EDIT_TRACKED_FIELDS.some(f => JSON.stringify(a[f]) !== JSON.stringify(old[f]))) changedIds.add(a.id);
+    });
+    const deletedIds = activeBefore.filter(a => !sortedIds.has(a.id)).map(a => a.id);
+    const addedIds   = sorted.filter(a => !beforeById[a.id]).map(a => a.id);
+
+    let scope = 'all';
+    if(changedIds.size || deletedIds.length){
+      scope = await askEditScope();
+      if(scope === null) return; // cancelled — leave the edit modal open as-is
+    }
+
+    if(scope === 'future'){
+      const yesterday = formatISO(new Date(Date.now() - 86400000));
+      // A "from today" delete keeps the row (so past days still show it)
+      // but stops it applying going forward.
+      deletedIds.forEach(id => sorted.push({ ...beforeById[id], discontinuedFrom: todayISO }));
+      // A "from today" edit snapshots the old field values into history
+      // before the new values take effect.
+      sorted = sorted.map(a => {
+        if(!changedIds.has(a.id)) return a;
+        const old = beforeById[a.id];
+        const snapshot = {};
+        EDIT_TRACKED_FIELDS.forEach(f => { if(old[f] !== undefined) snapshot[f] = old[f]; });
+        return { ...a, history: [...(old.history || []), { until: yesterday, ...snapshot }] };
+      });
+    }
+    // New activities have no past to apply to — they simply start today.
+    sorted = sorted.map(a => addedIds.includes(a.id) ? { ...a, effectiveFrom: todayISO } : a);
+
+    sorted = sortActivitiesByTime([...sorted, ...carryForward]);
+
+    // Track which hardcoded activities were removed so auto-append skips them
+    // (only relevant for a true "entire history" delete — a "from today"
+    // delete keeps its row above, so it's already accounted for).
     const savedIds = new Set(sorted.map(a => a.id));
     const defs = currentUser === USER_A_NAME ? ACTIVITIES_IBRAHIM : ACTIVITIES_SAMEEHA;
     const prevDeleted = JSON.parse(localStorage.getItem(`${LS_NS}deleted_acts:${currentUser}`) || '[]');
@@ -1679,26 +2072,39 @@ async function toggleActivity(iso, activityId, dIdx, who){
     const saveKey  = `${who}:${iso}`;
     clearTimeout(saveDebounce[debKey]);
     pendingSaves.add(saveKey);
+    // Accumulate this toggle into whatever diffs are still waiting to be sent
+    // for this day, so several quick toggles coalesce into one request —
+    // but the request always describes *changes*, never a full snapshot, so
+    // it can't clobber a change another device just saved.
+    if(!pendingDiffs[debKey]) pendingDiffs[debKey] = {};
+    pendingDiffs[debKey][activityId] = !wasChecked;
+
     saveDebounce[debKey] = setTimeout(async () => {
-      const snapshot = [...(who === USER_A_NAME ? weekDataA[iso] : weekDataB[iso])];
+      const diffs = pendingDiffs[debKey];
+      delete pendingDiffs[debKey];
       setSyncBadge('local', 'Saving…');
       try{
-        await apiSaveDay(who, iso, snapshot);
+        const result = await apiSaveDay(who, iso, diffs);
         pendingSaves.delete(saveKey);
-        // Update cache
-        const dates    = getWeekDates();
-        const cacheKey = `${formatISO(dates[0])}:${formatISO(dates[6])}`;
-        if(apiCache[cacheKey]){
-          const cached = apiCache[cacheKey].data;
-          if(!cached.data) cached.data = {};
-          if(!cached.data[who]) cached.data[who] = {};
-          cached.data[who][iso] = snapshot;
-          apiCache[cacheKey].time = Date.now();
+        // Trust the server's merged result as the source of truth for the cache —
+        // it reflects any concurrent changes from other devices too, not just ours.
+        if(result.activities){
+          const dates    = getWeekDates();
+          const cacheKey = `${formatISO(dates[0])}:${formatISO(dates[6])}`;
+          if(apiCache[cacheKey]){
+            const cached = apiCache[cacheKey].data;
+            if(!cached.data) cached.data = {};
+            if(!cached.data[who]) cached.data[who] = {};
+            cached.data[who][iso] = result.activities;
+            apiCache[cacheKey].time = Date.now();
+          }
         }
         setSyncBadge('cloud', `Saved ✓ — ${USER_A_NAME} &amp; ${USER_B_NAME}`);
         setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
       }catch(err){
         pendingSaves.delete(saveKey);
+        // Put the diffs back so the next change (or a future retry) still includes them
+        pendingDiffs[debKey] = { ...diffs, ...(pendingDiffs[debKey] || {}) };
         setSyncBadge('err', 'Save failed — will retry on next change');
       }
     }, 300);
@@ -1742,7 +2148,11 @@ function render(){
   getActivities(currentUser).forEach(act => {
     if(viewMode === 'daily' && !actApplies(act, dates[0])) return;
     if(viewMode === 'weekly' && getActScheduleType(act) !== 'daily') return;
-    const label = getLabel(act.id, labelDate, act.label);
+    // Show the row as it looked on the displayed date, not necessarily as it
+    // looks today — an edit saved "from today onward" leaves past days
+    // showing the old name/time/icon.
+    const rowAct = resolveActivityForDate(act, labelDate);
+    const label  = rowAct.label;
     tbody += `<tr class="${act.section?'section-start':''}" data-act="${act.id}">`;
 
     let actCell = '';
@@ -1750,12 +2160,12 @@ function render(){
       const iso  = formatISO(dates[0]);
       const note = localGetNote(currentUser, iso, act.id);
       const noteTA = `<textarea class="act-note" data-iso="${iso}" data-actid="${act.id}" placeholder="📝 Add a note…">${escapeHtml(note)}</textarea>`;
-      actCell = `<td class="activity"><div class="act-row"><div class="act-icon ${catCSSClass(act.cat)}">${act.icon}</div><div class="act-text"><div class="act-label">${label}</div><div class="act-daily-row"><span class="act-time-badge">${act.time}</span>${noteTA}</div></div></div></td>`;
+      actCell = `<td class="activity"><div class="act-row"><div class="act-icon ${catCSSClass(rowAct.cat)}">${rowAct.icon}</div><div class="act-text"><div class="act-label">${label}</div><div class="act-daily-row"><span class="act-time-badge">${rowAct.time}</span>${noteTA}</div></div></div></td>`;
     } else {
       let noteDot = '';
       if(dates.some(d => localGetNote(currentUser, formatISO(d), act.id)))
         noteDot = `<span class="note-dot" title="Notes added this week">💬</span>`;
-      actCell = `<td class="activity"><div class="act-row"><div class="act-icon ${catCSSClass(act.cat)}">${act.icon}</div><div class="act-text"><div class="act-label">${label}</div><div class="act-time">${act.time}</div>${noteDot}</div></div></td>`;
+      actCell = `<td class="activity"><div class="act-row"><div class="act-icon ${catCSSClass(rowAct.cat)}">${rowAct.icon}</div><div class="act-text"><div class="act-label">${label}</div><div class="act-time">${rowAct.time}</div>${noteDot}</div></div></td>`;
     }
     tbody += actCell;
 
@@ -1901,7 +2311,7 @@ function renderUndoBtn(){
     const set = who === USER_A_NAME ? weekDataA[iso] : weekDataB[iso];
     if(wasChecked) set.add(activityId); else set.delete(activityId);
     localSet(who, iso, [...set]);
-    if(usingCloud) apiSaveDay(who, iso, [...set]).catch(() => {});
+    if(usingCloud) apiSaveDay(who, iso, { [activityId]: wasChecked }).catch(() => {});
     lastAction = null;
     renderLight();
     renderUndoBtn();
@@ -1918,7 +2328,13 @@ function renderResetBtn(){
     set.clear();
     localSet(currentUser, iso, []);
     Object.keys(apiCache).forEach(k => delete apiCache[k]);
-    if(usingCloud) apiSaveDay(currentUser, iso, []).catch(() => {});
+    // Drop any queued-but-unsent toggles for this day — they'd otherwise fire
+    // right after the reset and silently re-add whatever they described.
+    const debKey = `${currentUser}:${iso}`;
+    clearTimeout(saveDebounce[debKey]);
+    delete pendingDiffs[debKey];
+    pendingSaves.delete(debKey);
+    if(usingCloud) apiResetDay(currentUser, iso).catch(() => {});
     renderLight();
     renderResetBtn();
   });
@@ -2114,6 +2530,1193 @@ if(IS_TESTER) document.getElementById('testerBanner').style.display = 'flex';
     }, 400);
   });
 })();
+
+/* ═══════════════════════════════════════════════
+   SPORTS & DIET
+   ═══════════════════════════════════════════════ */
+const DAY_NAMES_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MEAL_SLOTS = ['Breakfast','Snack','Lunch','Dinner'];
+const SPORT_TYPES = [
+  { key:'Cycling',  icon:'🚴' },
+  { key:'Running',  icon:'🏃' },
+  { key:'Walking',  icon:'🚶' },
+  { key:'Swimming', icon:'🏊' },
+  { key:'Hiking',   icon:'🥾' },
+  { key:'Other',    icon:'⭐' },
+];
+function sportTypeIcon(key){ return (SPORT_TYPES.find(t => t.key === key) || {}).icon || ''; }
+
+let sportsWeekOffset = 0;
+let sportsViewMode = 'day'; // 'day' | 'weekly'
+let sportsDayIndex = new Date().getDay(); // 0=Sun..6=Sat — which day Day-mode is showing
+let sportsPlan = null;   // array of 7 { day, intensity, sessions:[{id,label,detail,icon}], notes } or null
+let sportsDone = {};     // { sessionId: true }
+let foodDefs = [];       // [{id,name,kcal,protein,fat,fiber,carbs,unit}]
+let foodLogEntries = []; // [{id,foodId,name,qty,kcal,protein,fat,fiber,carbs,meal}]
+let dietTarget = { kcal:0, protein:0 };
+let sportsInitialized = false;
+
+// Seeded once into a fresh account with no foods yet. Values are standard
+// per-serving estimates (USDA-ish) — the biggest variable is the protein
+// powder brand in the shake, so that one's worth double-checking against
+// the actual label; everything here stays editable in "Manage my foods".
+const DEFAULT_FOODS = [
+  { name:'Tortilla',              kcal:140, protein:4,    fat:3.5,  fiber:1.5, carbs:24, unit:'1 tortilla' },
+  { name:'Chicken Thighs',        kcal:210, protein:26,   fat:11,   fiber:0,   carbs:0,  unit:'100g cooked' },
+  { name:'Chicken Breast',        kcal:165, protein:31,   fat:3.6,  fiber:0,   carbs:0,  unit:'100g cooked' },
+  { name:'Cooked Dal',            kcal:116, protein:9,    fat:0.4,  fiber:8,   carbs:20, unit:'100g' },
+  { name:'Curd',                  kcal:60,  protein:3.5,  fat:3.3,  fiber:0,   carbs:4.7,unit:'100g' },
+  { name:'Full Egg',              kcal:78,  protein:6,    fat:5.3,  fiber:0,   carbs:0.6,unit:'1 egg' },
+  { name:'Egg White',             kcal:17,  protein:4,    fat:0.1,  fiber:0,   carbs:0.2,unit:'1 egg white' },
+  { name:'Rice',                  kcal:130, protein:2.7,  fat:0.3,  fiber:0.4, carbs:28, unit:'100g cooked' },
+  { name:'Omelette',              kcal:180, protein:12,   fat:14,   fiber:0,   carbs:1.2,unit:'2-egg omelette' },
+  { name:'Banana',                kcal:105, protein:1.3,  fat:0.4,  fiber:3.1, carbs:27, unit:'1 medium' },
+  { name:'Oats Protein Shake',    kcal:700, protein:42,   fat:20,   fiber:9,   carbs:75, unit:'1 serving (60g oats + 300ml milk + 8 almonds + 1 fig + 1 date + raisins + 1 scoop protein)' },
+  { name:'Quest Protein Chips',   kcal:130, protein:19,   fat:4.5,  fiber:5,   carbs:12, unit:'1 bag' },
+];
+
+function genId(prefix){ return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,7)}`; }
+
+function sportsStartOfWeek(d){
+  const dt = new Date(d); dt.setHours(0,0,0,0);
+  dt.setDate(dt.getDate() - dt.getDay()); // back up to Sunday
+  return dt;
+}
+function getSportsWeekDates(){
+  const base = sportsStartOfWeek(new Date());
+  base.setDate(base.getDate() + sportsWeekOffset * 7);
+  return Array.from({length:7}, (_, i) => { const d = new Date(base); d.setDate(base.getDate() + i); return d; });
+}
+
+/* ── API ── */
+async function apiGetSportsPlan(user, weekStart){
+  const url = `${API_URL}?action=getSportsPlan&user=${encodeURIComponent(user)}&weekStart=${weekStart}&token=${sessionToken}`;
+  const res = await fetchWithTimeout(url);
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Failed to load plan');
+  return json;
+}
+async function apiSaveSportsPlan(user, weekStart, plan){
+  // POST with the JSON payload in the body, not the URL — a long GET query
+  // string carrying a whole week's plan can silently fail/truncate on some
+  // networks (the same class of bug we found and fixed for photo uploads).
+  const url  = `${API_URL}?action=saveSportsPlan&user=${encodeURIComponent(user)}&weekStart=${weekStart}&token=${sessionToken}`;
+  const body = new FormData();
+  body.append('plan', JSON.stringify(plan));
+  const res = await fetchWithTimeout(url, 15000, { method:'POST', body });
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Failed to save plan');
+  return json;
+}
+async function apiToggleSportsSession(user, weekStart, sessionId, checked){
+  const url = `${API_URL}?action=toggleSportsSession&user=${encodeURIComponent(user)}&weekStart=${weekStart}&sessionId=${encodeURIComponent(sessionId)}&checked=${checked}&token=${sessionToken}`;
+  const res = await fetchWithTimeout(url);
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Failed to save');
+  return json;
+}
+async function apiGetFoodDefs(user){
+  const url = `${API_URL}?action=getFoodDefs&user=${encodeURIComponent(user)}&token=${sessionToken}`;
+  const res = await fetchWithTimeout(url);
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Failed to load foods');
+  return json;
+}
+async function apiSaveFoodDefs(user, foods){
+  const url  = `${API_URL}?action=saveFoodDefs&user=${encodeURIComponent(user)}&token=${sessionToken}`;
+  const body = new FormData();
+  body.append('foods', JSON.stringify(foods));
+  const res = await fetchWithTimeout(url, 15000, { method:'POST', body });
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Failed to save foods');
+  return json;
+}
+async function apiGetFoodLog(user, date){
+  const url = `${API_URL}?action=getFoodLog&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
+  const res = await fetchWithTimeout(url);
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Failed to load food log');
+  return json;
+}
+async function apiSaveFoodLog(user, date, entries){
+  const url  = `${API_URL}?action=saveFoodLog&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
+  const body = new FormData();
+  body.append('entries', JSON.stringify(entries));
+  const res = await fetchWithTimeout(url, 15000, { method:'POST', body });
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Failed to save food log');
+  return json;
+}
+async function apiGetDietTarget(user){
+  const url = `${API_URL}?action=getDietTarget&user=${encodeURIComponent(user)}&token=${sessionToken}`;
+  const res = await fetchWithTimeout(url);
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Failed to load target');
+  return json;
+}
+async function apiSaveDietTarget(user, kcal, protein){
+  const url = `${API_URL}?action=saveDietTarget&user=${encodeURIComponent(user)}&kcal=${kcal}&protein=${protein}&token=${sessionToken}`;
+  const res = await fetchWithTimeout(url);
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Failed to save target');
+  return json;
+}
+
+/* ── Tab switcher ── */
+document.getElementById('appTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.app-tab-btn');
+  if(!btn) return;
+  document.querySelectorAll('.app-tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const section = btn.dataset.section;
+  document.getElementById('trackerSection').classList.toggle('hidden', section !== 'tracker');
+  document.getElementById('sportsSection').classList.toggle('hidden', section !== 'sports');
+  document.getElementById('focusSection').classList.toggle('hidden', section !== 'focus');
+  if(section === 'sports' && !sportsInitialized){
+    sportsInitialized = true;
+    loadSportsPlan();
+    loadDiet();
+  }
+});
+
+/* ── Sports plan: load + render ── */
+function renderSportsRangeLabel(){
+  const dates = getSportsWeekDates();
+  const first = dates[0], last = dates[6];
+  if(sportsViewMode === 'day'){
+    const d = dates[sportsDayIndex];
+    document.getElementById('sportsWeekRange').textContent = `${DAY_NAMES_FULL[sportsDayIndex]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+  } else {
+    document.getElementById('sportsWeekRange').textContent =
+      first.getMonth() === last.getMonth()
+        ? `${MONTH_NAMES[first.getMonth()]} ${first.getDate()}–${last.getDate()}`
+        : `${MONTH_NAMES[first.getMonth()]} ${first.getDate()} – ${MONTH_NAMES[last.getMonth()]} ${last.getDate()}`;
+  }
+}
+
+const sportsPlanCache = {}; // weekStart -> { plan, done, time }
+const SPORTS_PLAN_CACHE_TTL = 60000;
+function touchSportsPlanCache(){
+  sportsPlanCache[formatISO(getSportsWeekDates()[0])] = { plan: sportsPlan, done: sportsDone, time: Date.now() };
+}
+
+async function loadSportsPlan(){
+  const weekStart = formatISO(getSportsWeekDates()[0]);
+  renderSportsRangeLabel();
+  const hit = sportsPlanCache[weekStart];
+  if(hit && Date.now() - hit.time < SPORTS_PLAN_CACHE_TTL){
+    sportsPlan = hit.plan; sportsDone = hit.done;
+    renderSportsPlan();
+    return;
+  }
+  document.getElementById('sportsPlanHost').innerHTML = '<div class="sports-empty">Loading…</div>';
+  try{
+    const res = await apiGetSportsPlan(currentUser, weekStart);
+    sportsPlan = res.plan;
+    sportsDone = res.done || {};
+    sportsPlanCache[weekStart] = { plan: sportsPlan, done: sportsDone, time: Date.now() };
+  }catch(e){
+    sportsPlan = null; sportsDone = {};
+  }
+  renderSportsPlan();
+}
+
+// Structured sessions (distance/time/pace) render as evenly-spaced chips;
+// sessions that only have a free-text detail (e.g. some Excel imports)
+// fall back to a plain line so nothing is lost.
+function renderSportsSessionStats(s){
+  const chips = [];
+  if(s.distance) chips.push(`<span class="sports-session-stat">${escapeHtml(s.distance)}</span>`);
+  if(s.time)     chips.push(`<span class="sports-session-stat">${escapeHtml(s.time)}</span>`);
+  if(s.pace)      chips.push(`<span class="sports-session-stat pace">${escapeHtml(s.pace)}</span>`);
+  if(chips.length) return `<div class="sports-session-stats">${chips.join('')}</div>`;
+  return s.detail ? `<div class="sports-session-detail">${escapeHtml(s.detail)}</div>` : '';
+}
+function renderSportsDayCard(day, i, dates){
+  const iso = formatISO(dates[i] || dates[0]);
+  const isToday = iso === todayISO;
+  const sessions = (day.sessions || []).map(s => {
+    const checked = !!sportsDone[s.id];
+    return `<div class="sports-session-row">
+      <button class="sports-session-check${checked?' checked':''}" data-sid="${s.id}">${checked?'✓':''}</button>
+      <div class="sports-session-text">
+        <div class="sports-session-label${checked?' checked':''}">${s.icon?s.icon+' ':''}${escapeHtml(s.label||'')}</div>
+        ${renderSportsSessionStats(s)}
+      </div>
+      <button class="food-entry-remove" data-di="${i}" data-sid="${s.id}" title="Delete">✕</button>
+    </div>`;
+  }).join('') || '<div class="sports-session-detail" style="padding:6px 0;">Nothing logged yet.</div>';
+  return `<div class="sports-day-card">
+    <div class="sports-day-head">
+      <span class="sports-day-name${isToday?' today':''}">${escapeHtml(day.day || DAY_NAMES_FULL[i])}</span>
+      ${day.intensity ? `<span class="sports-day-intensity">${escapeHtml(day.intensity)}</span>` : ''}
+    </div>
+    ${sessions}
+  </div>`;
+}
+
+function sportsQuickAddRowHTML(){
+  const typeOpts = SPORT_TYPES.filter(t => t.key !== 'Other').map(t => `<option value="${t.key}">${t.icon} ${t.key}</option>`).join('');
+  return `<div class="sports-add-row">
+    <select id="sportsQuickType">
+      <option value="" selected disabled>Select an activity…</option>
+      ${typeOpts}
+    </select>
+    <input type="number" id="sportsQuickDistance" placeholder="Distance (km)" min="0" step="0.01" inputmode="decimal">
+    <input type="number" id="sportsQuickTimeMin" class="time-sub" placeholder="Min" min="0" step="1" inputmode="numeric">
+    <input type="number" id="sportsQuickTimeSec" class="time-sub" placeholder="Sec" min="0" max="59" step="1" inputmode="numeric">
+    <button type="button" id="sportsQuickAddBtn">+ Log it</button>
+  </div>`;
+}
+// "M:SS" duration label — blank if both parts are empty.
+function formatDuration(min, sec){
+  if(!min && !sec) return '';
+  return `${min}:${String(sec).padStart(2,'0')}`;
+}
+// min/km pace as "M:SS /km" — blank if either side is missing/zero.
+function formatPace(distanceKm, timeMin){
+  if(!distanceKm || !timeMin) return '';
+  const paceMin = timeMin / distanceKm;
+  const min = Math.floor(paceMin);
+  const sec = Math.round((paceMin - min) * 60);
+  return `${min}:${String(sec).padStart(2,'0')} /km`;
+}
+
+function renderSportsPlan(){
+  const host = document.getElementById('sportsPlanHost');
+  const showQuickAdd = sportsViewMode === 'day';
+
+  if(!sportsPlan || !sportsPlan.length){
+    host.innerHTML = `<div class="sports-empty">No plan set for this week yet.</div>` + (showQuickAdd ? sportsQuickAddRowHTML() : '');
+    if(showQuickAdd) wireSportsQuickAdd();
+    return;
+  }
+  const dates = getSportsWeekDates();
+  if(sportsViewMode === 'day'){
+    const day = sportsPlan[sportsDayIndex] || { day: DAY_NAMES_FULL[sportsDayIndex], sessions: [] };
+    host.innerHTML = renderSportsDayCard(day, sportsDayIndex, dates) + sportsQuickAddRowHTML();
+  } else {
+    host.innerHTML = sportsPlan.map((day, i) => renderSportsDayCard(day, i, dates)).join('');
+  }
+
+  host.querySelectorAll('.sports-session-check').forEach(btn =>
+    btn.addEventListener('click', () => toggleSportsSessionUI(btn.dataset.sid))
+  );
+  host.querySelectorAll('.sports-session-row .food-entry-remove').forEach(btn =>
+    btn.addEventListener('click', () => removeSportsSession(Number(btn.dataset.di), btn.dataset.sid))
+  );
+  if(showQuickAdd) wireSportsQuickAdd();
+}
+
+async function removeSportsSession(dayIndex, sid){
+  if(!sportsPlan || !sportsPlan[dayIndex]) return;
+  sportsPlan[dayIndex].sessions = (sportsPlan[dayIndex].sessions || []).filter(s => s.id !== sid);
+  delete sportsDone[sid];
+  renderSportsPlan();
+  touchSportsPlanCache();
+  const weekStart = formatISO(getSportsWeekDates()[0]);
+  try{
+    await Promise.all([
+      apiSaveSportsPlan(currentUser, weekStart, sportsPlan),
+      apiToggleSportsSession(currentUser, weekStart, sid, false)
+    ]);
+  }catch(e){ setSyncBadge('err', 'Could not delete — try again'); }
+}
+
+function wireSportsQuickAdd(){
+  const btn = document.getElementById('sportsQuickAddBtn');
+  if(!btn) return;
+  btn.addEventListener('click', () => {
+    const type = document.getElementById('sportsQuickType').value;
+    if(!type) return; // nothing picked yet
+    const distanceKm = parseFloat(document.getElementById('sportsQuickDistance').value) || 0;
+    const min        = parseInt(document.getElementById('sportsQuickTimeMin').value) || 0;
+    const sec        = parseInt(document.getElementById('sportsQuickTimeSec').value) || 0;
+    quickAddSportsSession(type, distanceKm, min, sec);
+  });
+}
+
+// Logs a completed session directly onto the currently viewed day — for
+// recording what you actually did, as opposed to the plan editor which is
+// for setting up sessions ahead of time. Added sessions are marked done
+// immediately since you're logging something you already finished.
+async function quickAddSportsSession(type, distanceKm, min, sec){
+  if(!sportsPlan || !sportsPlan.length){
+    sportsPlan = DAY_NAMES_FULL.map(name => ({ day: name, intensity:'', sessions:[] }));
+  }
+  const timeMin   = min + sec / 60;
+  const timeLabel = formatDuration(min, sec);
+  const pace      = formatPace(distanceKm, timeMin);
+  const stats = [
+    distanceKm ? `${distanceKm} km` : '',
+    timeLabel,
+    pace
+  ].filter(Boolean).join(' · ');
+  const session = {
+    id: genId('s'), type, label: type,
+    distance: distanceKm ? `${distanceKm} km` : '',
+    time: timeLabel,
+    pace,
+    icon: sportTypeIcon(type),
+    detail: stats
+  };
+  if(!sportsPlan[sportsDayIndex]) sportsPlan[sportsDayIndex] = { day: DAY_NAMES_FULL[sportsDayIndex], intensity:'', sessions:[] };
+  if(!sportsPlan[sportsDayIndex].sessions) sportsPlan[sportsDayIndex].sessions = [];
+  sportsPlan[sportsDayIndex].sessions.push(session);
+  sportsDone[session.id] = true;
+  renderSportsPlan();
+  touchSportsPlanCache();
+
+  const weekStart = formatISO(getSportsWeekDates()[0]);
+  try{
+    await Promise.all([
+      apiSaveSportsPlan(currentUser, weekStart, sportsPlan),
+      apiToggleSportsSession(currentUser, weekStart, session.id, true)
+    ]);
+    setSyncBadge('cloud', 'Logged ✓');
+    setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
+  }catch(e){ setSyncBadge('err', 'Could not save — try again'); }
+}
+
+async function toggleSportsSessionUI(sid){
+  const checked = !sportsDone[sid];
+  if(checked) sportsDone[sid] = true; else delete sportsDone[sid];
+  renderSportsPlan();
+  touchSportsPlanCache();
+  const weekStart = formatISO(getSportsWeekDates()[0]);
+  try{ await apiToggleSportsSession(currentUser, weekStart, sid, checked); }catch(e){}
+}
+
+document.getElementById('sportsModeSwitch').addEventListener('click', e => {
+  const btn = e.target.closest('.mode-btn');
+  if(!btn || btn.dataset.smode === sportsViewMode) return;
+  sportsViewMode = btn.dataset.smode;
+  document.querySelectorAll('#sportsModeSwitch .mode-btn').forEach(b => b.classList.toggle('active', b === btn));
+  if(sportsViewMode === 'day'){ sportsDayIndex = new Date().getDay(); loadFoodLog(); }
+  renderSportsRangeLabel();
+  renderSportsPlan();
+});
+
+// Diet is keyed to whatever day is currently selected (getDietDate() reads
+// sportsDayIndex + sportsWeekOffset), so every nav path that can shift that
+// underlying date — including week-level nav in Weekly view — has to
+// reload the food log too, not just re-render the Sports checklist. Only
+// the log itself (loadFoodLog) — foodDefs/target don't change per-day.
+document.getElementById('sportsPrevBtn').addEventListener('click', () => {
+  if(sportsViewMode === 'day'){
+    sportsDayIndex--;
+    if(sportsDayIndex < 0){ sportsDayIndex = 6; sportsWeekOffset--; loadSportsPlan(); loadFoodLog(); return; }
+    renderSportsRangeLabel(); renderSportsPlan(); loadFoodLog();
+  } else {
+    sportsWeekOffset--; loadSportsPlan(); loadFoodLog();
+  }
+});
+document.getElementById('sportsNextBtn').addEventListener('click', () => {
+  if(sportsViewMode === 'day'){
+    sportsDayIndex++;
+    if(sportsDayIndex > 6){ sportsDayIndex = 0; sportsWeekOffset++; loadSportsPlan(); loadFoodLog(); return; }
+    renderSportsRangeLabel(); renderSportsPlan(); loadFoodLog();
+  } else {
+    sportsWeekOffset++; loadSportsPlan(); loadFoodLog();
+  }
+});
+
+/* ── Sports plan editor ── */
+function openSportsEditModal(){
+  const dates = getSportsWeekDates();
+  const plan = (sportsPlan && sportsPlan.length ? sportsPlan : dates.map((d,i) => ({ day: DAY_NAMES_FULL[i], intensity:'', sessions:[] })));
+  renderSportsEditDays(plan);
+  document.getElementById('sportsEditModalOverlay').classList.remove('hidden');
+}
+function sportsSessionRowHTML(s){
+  s = s || {};
+  const type = s.type || 'Other';
+  const showLabel = type === 'Other';
+  const typeOpts = SPORT_TYPES.map(t => `<option value="${t.key}"${type===t.key?' selected':''}>${t.icon} ${t.key}</option>`).join('');
+  return `
+    <div class="sports-edit-session-row" data-sid="${s.id || genId('s')}">
+      <select class="sess-type">${typeOpts}</select>
+      <input type="text" class="sess-label" placeholder="Custom name" value="${escapeHtml(s.label||'')}" style="${showLabel?'':'display:none'}">
+      <input type="text" class="sess-distance" placeholder="Distance (e.g. 6K)" value="${escapeHtml(s.distance||'')}">
+      <input type="text" class="sess-time" placeholder="Time (e.g. 42 min)" value="${escapeHtml(s.time||'')}">
+      <button type="button" class="sess-del-btn">✕</button>
+    </div>`;
+}
+function renderSportsEditDays(plan){
+  document.getElementById('sportsEditDays').innerHTML = plan.map((day, di) => {
+    const sessRows = (day.sessions || []).map(sportsSessionRowHTML).join('');
+    return `<div class="sports-edit-day" data-di="${di}">
+      <div class="sports-edit-day-head">
+        <strong>${DAY_NAMES_FULL[di]}</strong>
+        <input type="text" class="day-intensity" placeholder="Intensity (e.g. Easy)" value="${escapeHtml(day.intensity||'')}">
+      </div>
+      <div class="sports-edit-sessions">${sessRows}</div>
+      <button type="button" class="sports-add-session-btn">+ Add session</button>
+    </div>`;
+  }).join('');
+}
+document.getElementById('sportsEditDays').addEventListener('click', e => {
+  const addBtn = e.target.closest('.sports-add-session-btn');
+  if(addBtn){
+    const container = addBtn.previousElementSibling;
+    const div = document.createElement('div');
+    div.innerHTML = sportsSessionRowHTML({});
+    container.appendChild(div.firstElementChild);
+    return;
+  }
+  const delBtn = e.target.closest('.sess-del-btn');
+  if(delBtn) delBtn.closest('.sports-edit-session-row').remove();
+});
+document.getElementById('sportsEditDays').addEventListener('change', e => {
+  const sel = e.target.closest('.sess-type');
+  if(!sel) return;
+  const labelInp = sel.closest('.sports-edit-session-row').querySelector('.sess-label');
+  labelInp.style.display = sel.value === 'Other' ? '' : 'none';
+});
+function readSportsEditDays(){
+  return Array.from(document.querySelectorAll('.sports-edit-day')).map(dayEl => {
+    const di = Number(dayEl.dataset.di);
+    const intensity = dayEl.querySelector('.day-intensity').value.trim();
+    const sessions = Array.from(dayEl.querySelectorAll('.sports-edit-session-row'))
+      .map(row => {
+        const type     = row.querySelector('.sess-type').value;
+        const distance = row.querySelector('.sess-distance').value.trim();
+        const time     = row.querySelector('.sess-time').value.trim();
+        const custom   = row.querySelector('.sess-label').value.trim();
+        const label    = type === 'Other' ? custom : type;
+        return {
+          id: row.dataset.sid,
+          type, label, distance, time,
+          icon: type === 'Other' ? '' : sportTypeIcon(type),
+          detail: [distance, time].filter(Boolean).join(' · '),
+        };
+      })
+      .filter(s => s.label);
+    return { day: DAY_NAMES_FULL[di], intensity, sessions };
+  });
+}
+document.getElementById('sportsEditBtn').addEventListener('click', openSportsEditModal);
+document.getElementById('sportsEditCancelBtn').addEventListener('click', () =>
+  document.getElementById('sportsEditModalOverlay').classList.add('hidden'));
+document.getElementById('sportsEditModalOverlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('sportsEditModalOverlay'))
+    document.getElementById('sportsEditModalOverlay').classList.add('hidden');
+});
+document.getElementById('sportsEditSaveBtn').addEventListener('click', async () => {
+  const plan = readSportsEditDays();
+  sportsPlan = plan;
+  renderSportsPlan();
+  touchSportsPlanCache();
+  document.getElementById('sportsEditModalOverlay').classList.add('hidden');
+  try{
+    await apiSaveSportsPlan(currentUser, formatISO(getSportsWeekDates()[0]), plan);
+    setSyncBadge('cloud', 'Plan saved ✓');
+    setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
+  }catch(e){ setSyncBadge('err', 'Could not save plan — try again'); }
+});
+
+/* ── Excel upload ── */
+document.getElementById('sportsUploadBtn').addEventListener('click', () =>
+  document.getElementById('sportsUploadInput').click());
+document.getElementById('sportsUploadInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  try{
+    const buf = await file.arrayBuffer();
+    const wb  = XLSX.read(buf, { type:'array' });
+    const parsed = parseWeekPlanWorkbook(wb);
+    if(!parsed){ alert('Could not find a "Day / Intensity / AM Session / PM Session" table in that file.'); return; }
+    sportsPlan = parsed;
+    renderSportsPlan();
+    touchSportsPlanCache();
+    await apiSaveSportsPlan(currentUser, formatISO(getSportsWeekDates()[0]), parsed);
+    setSyncBadge('cloud', 'Plan uploaded ✓');
+    setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
+  }catch(err){
+    alert('Could not read that file: ' + err.message);
+  }
+});
+// Looks for a sheet with a header row containing "Day" and "Intensity" columns
+// (matching the MARATHON WEEK PLAN layout), then reads AM/PM Session + Volume
+// into checkable sessions for each of the following 7 rows.
+function guessSportType(label){
+  const l = label.toLowerCase();
+  if(/swim/.test(l))            return 'Swimming';
+  if(/cycl|\bbike\b/.test(l))   return 'Cycling';
+  if(/\brun/.test(l))           return 'Running';
+  if(/walk/.test(l))            return 'Walking';
+  if(/hik/.test(l))             return 'Hiking';
+  return 'Other';
+}
+function buildImportedSession(rawLabel, volume){
+  const type = guessSportType(rawLabel);
+  // Recognized types show their name + icon automatically, so the original
+  // free-text label (which usually carries the useful detail, e.g. "Swim —
+  // Freestyle") goes into the time field alongside the volume rather than
+  // being discarded.
+  const timeText = type === 'Other' ? volume : [rawLabel, volume].filter(Boolean).join(' — ');
+  return {
+    id: genId('s'), type,
+    label: type === 'Other' ? rawLabel : '',
+    distance: '', time: timeText,
+    icon: sportTypeIcon(type),
+    detail: timeText
+  };
+}
+function parseWeekPlanWorkbook(wb){
+  const sheetName = wb.SheetNames.find(n => /week ?plan/i.test(n)) || wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+
+  let headerIdx = -1;
+  for(let i = 0; i < rows.length; i++){
+    const row = rows[i].map(c => String(c).trim().toLowerCase());
+    if(row.includes('day') && row.includes('intensity')){ headerIdx = i; break; }
+  }
+  if(headerIdx === -1) return null;
+
+  const header = rows[headerIdx].map(c => String(c).trim().toLowerCase());
+  const idx = name => header.indexOf(name);
+  const cDay = idx('day'), cInt = idx('intensity');
+  const cAmS = idx('am session'), cAmV = idx('am volume');
+  const cPmS = idx('pm session'), cPmV = idx('pm volume');
+  const cNotes = idx('key notes');
+
+  const days = [];
+  for(let i = headerIdx + 1; i < rows.length && days.length < 7; i++){
+    const row = rows[i];
+    const dayName = String(row[cDay] || '').trim();
+    if(!dayName) continue;
+    const sessions = [];
+    if(cAmS > -1){
+      const label = String(row[cAmS] || '').trim();
+      if(label && !/^rest$/i.test(label)) sessions.push(buildImportedSession(label, cAmV>-1 ? String(row[cAmV]||'').trim() : ''));
+    }
+    if(cPmS > -1){
+      const label = String(row[cPmS] || '').trim();
+      if(label && !/^rest$/i.test(label)) sessions.push(buildImportedSession(label, cPmV>-1 ? String(row[cPmV]||'').trim() : ''));
+    }
+    days.push({
+      day: dayName,
+      intensity: cInt>-1 ? String(row[cInt]||'').trim() : '',
+      sessions,
+      notes: cNotes>-1 ? String(row[cNotes]||'').trim() : ''
+    });
+  }
+  return days.length ? days : null;
+}
+
+/* ── Diet ── */
+// Diet follows whichever day is currently selected in the Sports Day view,
+// not always "today" — previously it was hardcoded to todayISO, so
+// navigating to a different day in Sports left Diet stuck showing
+// today's (or whatever day was loaded first) log regardless.
+function getDietDate(){
+  return formatISO(getSportsWeekDates()[sportsDayIndex]);
+}
+
+// foodDefs/dietTarget are per-user, not per-day — fetching them fresh on
+// every day/week nav click (as loadDiet() used to) was 2 wasted network
+// round trips per click on top of the one that actually mattered. They're
+// now loaded once when the Sports & Diet tab opens; only the food log
+// (loadFoodLog) re-fetches when the selected day changes.
+const foodLogCache = {}; // dateISO -> { entries, time }
+const FOOD_LOG_CACHE_TTL = 60000;
+
+async function loadDietStatic(){
+  try{
+    const [defsRes, targetRes] = await Promise.all([
+      apiGetFoodDefs(currentUser),
+      apiGetDietTarget(currentUser)
+    ]);
+    foodDefs = defsRes.foods || [];
+    dietTarget = { kcal: targetRes.kcal || 0, protein: targetRes.protein || 0 };
+  }catch(e){
+    foodDefs = []; dietTarget = { kcal:0, protein:0 };
+  }
+  if(!foodDefs.length){
+    foodDefs = DEFAULT_FOODS.map(f => ({ ...f, id: genId('f') }));
+    try{ await apiSaveFoodDefs(currentUser, foodDefs); }catch(e){}
+  }
+}
+
+async function loadFoodLog(){
+  const date = getDietDate();
+  const hit  = foodLogCache[date];
+  if(hit && Date.now() - hit.time < FOOD_LOG_CACHE_TTL){
+    foodLogEntries = hit.entries;
+    renderDiet();
+    return;
+  }
+  try{
+    const logRes = await apiGetFoodLog(currentUser, date);
+    foodLogEntries = logRes.entries || [];
+    foodLogCache[date] = { entries: foodLogEntries, time: Date.now() };
+  }catch(e){
+    foodLogEntries = [];
+  }
+  renderDiet();
+}
+
+async function loadDiet(){
+  await loadDietStatic();
+  await loadFoodLog();
+}
+
+function renderDietTargetRow(){
+  document.getElementById('dietTargetRow').innerHTML = `
+    🎯 Target:
+    <input type="number" id="dietTargetKcal" placeholder="Kcal" min="0" value="${dietTarget.kcal || ''}"> kcal ·
+    <input type="number" id="dietTargetProtein" placeholder="Protein" min="0" value="${dietTarget.protein || ''}"> g protein
+  `;
+  const save = async () => {
+    const kcal    = parseFloat(document.getElementById('dietTargetKcal').value) || 0;
+    const protein = parseFloat(document.getElementById('dietTargetProtein').value) || 0;
+    dietTarget = { kcal, protein };
+    renderDiet();
+    try{ await apiSaveDietTarget(currentUser, kcal, protein); }catch(e){}
+  };
+  document.getElementById('dietTargetKcal').addEventListener('change', save);
+  document.getElementById('dietTargetProtein').addEventListener('change', save);
+}
+
+function renderDietDateLabel(){
+  const dates = getSportsWeekDates();
+  const d     = dates[sportsDayIndex];
+  const iso   = formatISO(d);
+  const label = `${DAY_NAMES_FULL[sportsDayIndex]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+  document.getElementById('dietDateLabel').textContent =
+    `🍽 Diet — ${label}${iso === todayISO ? ' (Today)' : ''}`;
+}
+
+function renderDiet(){
+  renderDietDateLabel();
+  renderDietTargetRow();
+
+  const totals = foodLogEntries.reduce((t,e) => {
+    t.kcal += e.kcal||0; t.protein += e.protein||0; t.fat += e.fat||0; t.fiber += e.fiber||0; t.carbs += e.carbs||0;
+    return t;
+  }, { kcal:0, protein:0, fat:0, fiber:0, carbs:0 });
+
+  const kcalTarget    = dietTarget.kcal    ? `<span class="target"> / ${dietTarget.kcal}</span>` : '';
+  const proteinTarget = dietTarget.protein ? `<span class="target"> / ${dietTarget.protein}g</span>` : '';
+
+  document.getElementById('dietTotalBar').innerHTML = `
+    <div class="diet-total-item"><div class="val">${Math.round(totals.kcal)}${kcalTarget}</div><div class="lbl">Kcal</div></div>
+    <div class="diet-total-item"><div class="val">${Math.round(totals.protein)}g${proteinTarget}</div><div class="lbl">Protein</div></div>
+    <div class="diet-total-item"><div class="val">${Math.round(totals.fat)}g</div><div class="lbl">Fat</div></div>
+    <div class="diet-total-item"><div class="val">${Math.round(totals.fiber)}g</div><div class="lbl">Fiber</div></div>
+    <div class="diet-total-item"><div class="val">${Math.round(totals.carbs)}g</div><div class="lbl">Carbs</div></div>
+  `;
+
+  const foodOptions = foodDefs.map(f =>
+    `<option value="${f.id}">${escapeHtml(f.name)} — ${f.kcal} kcal, ${f.protein}g${f.unit ? ' / '+escapeHtml(f.unit) : ''}</option>`
+  ).join('');
+
+  document.getElementById('dietHost').innerHTML = MEAL_SLOTS.map(meal => {
+    const entries  = foodLogEntries.filter(e => e.meal === meal);
+    const mealKcal = entries.reduce((s,e) => s + (e.kcal||0), 0);
+    const rows = entries.map(e => `
+      <div class="food-entry-row">
+        <span class="food-entry-name">${escapeHtml(e.name)} × ${e.qty}</span>
+        <span class="food-entry-macro">${Math.round(e.kcal)} kcal · ${Math.round(e.protein)}g P · ${Math.round(e.fat||0)}g F · ${Math.round(e.carbs||0)}g C</span>
+        <button class="food-entry-remove" data-eid="${e.id}">✕</button>
+      </div>`).join('');
+    return `<div class="meal-slot" data-meal="${meal}">
+      <div class="meal-slot-head">
+        <span class="meal-slot-title">${meal}</span>
+        <span class="meal-slot-kcal">${Math.round(mealKcal)} kcal</span>
+      </div>
+      ${rows}
+      <div class="food-add-row">
+        <select class="food-select">
+          <option value="" selected disabled>${foodDefs.length ? 'Select a food…' : 'Add foods below first'}</option>
+          ${foodOptions}
+        </select>
+        <input type="number" class="food-qty" value="1" min="0.25" step="0.25">
+        <button type="button" class="food-add-btn"${foodDefs.length?'':' disabled'}>+ Add</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('.food-entry-remove').forEach(btn =>
+    btn.addEventListener('click', () => removeFoodEntry(btn.dataset.eid)));
+  document.querySelectorAll('.food-add-btn').forEach(btn =>
+    btn.addEventListener('click', () => {
+      const slot   = btn.closest('.meal-slot');
+      const sel    = slot.querySelector('.food-select');
+      const qtyInp = slot.querySelector('.food-qty');
+      if(!sel.value) return; // nothing picked yet
+      const food = foodDefs.find(f => f.id === sel.value);
+      if(!food) return;
+      const qty = parseFloat(qtyInp.value) || 1;
+      addFoodEntry(slot.dataset.meal, food, qty);
+    }));
+}
+
+function touchFoodLogCache(){
+  foodLogCache[getDietDate()] = { entries: foodLogEntries, time: Date.now() };
+}
+
+async function addFoodEntry(meal, food, qty){
+  const scale = n => Math.round((n||0) * qty * 10) / 10;
+  foodLogEntries.push({
+    id: genId('e'), foodId: food.id, name: food.name, qty,
+    kcal: scale(food.kcal), protein: scale(food.protein),
+    fat: scale(food.fat), fiber: scale(food.fiber), carbs: scale(food.carbs),
+    meal
+  });
+  renderDiet();
+  touchFoodLogCache();
+  try{ await apiSaveFoodLog(currentUser, getDietDate(), foodLogEntries); }catch(e){}
+}
+async function removeFoodEntry(id){
+  foodLogEntries = foodLogEntries.filter(e => e.id !== id);
+  renderDiet();
+  touchFoodLogCache();
+  try{ await apiSaveFoodLog(currentUser, getDietDate(), foodLogEntries); }catch(e){}
+}
+
+/* ── Food definitions manager ── */
+function openFoodDefModal(){
+  renderFoodDefRows(foodDefs);
+  document.getElementById('foodDefModalOverlay').classList.remove('hidden');
+}
+function foodDefRowInnerHTML(f){
+  f = f || {};
+  return `<input type="text" class="fd-name" placeholder="Food name" value="${escapeHtml(f.name||'')}">
+    <span class="fd-num-label">Kcal</span><input type="number" class="fd-num fd-kcal" value="${f.kcal||''}">
+    <span class="fd-num-label">Prot g</span><input type="number" class="fd-num fd-protein" value="${f.protein||''}">
+    <span class="fd-num-label">Fat g</span><input type="number" class="fd-num fd-fat" value="${f.fat||''}">
+    <span class="fd-num-label">Fiber g</span><input type="number" class="fd-num fd-fiber" value="${f.fiber||''}">
+    <span class="fd-num-label">Carbs g</span><input type="number" class="fd-num fd-carbs" value="${f.carbs||''}">
+    <input type="text" class="fd-unit" placeholder="Unit (e.g. 1 bowl)" value="${escapeHtml(f.unit||'')}">
+    <button type="button" class="fd-del-btn">✕</button>`;
+}
+function renderFoodDefRows(foods){
+  document.getElementById('foodDefRows').innerHTML = foods.map(f =>
+    `<div class="food-def-row" data-fid="${f.id || genId('f')}">${foodDefRowInnerHTML(f)}</div>`
+  ).join('');
+}
+document.getElementById('foodDefRows').addEventListener('click', e => {
+  const del = e.target.closest('.fd-del-btn');
+  if(del) del.closest('.food-def-row').remove();
+});
+document.getElementById('foodDefAddBtn').addEventListener('click', () => {
+  const container = document.getElementById('foodDefRows');
+  const div = document.createElement('div');
+  div.className = 'food-def-row';
+  div.dataset.fid = genId('f');
+  div.innerHTML = foodDefRowInnerHTML({});
+  container.appendChild(div);
+});
+document.getElementById('foodDefSaveBtn').addEventListener('click', async () => {
+  const foods = Array.from(document.querySelectorAll('.food-def-row')).map(row => ({
+    id: row.dataset.fid,
+    name: row.querySelector('.fd-name').value.trim(),
+    kcal: parseFloat(row.querySelector('.fd-kcal').value) || 0,
+    protein: parseFloat(row.querySelector('.fd-protein').value) || 0,
+    fat: parseFloat(row.querySelector('.fd-fat').value) || 0,
+    fiber: parseFloat(row.querySelector('.fd-fiber').value) || 0,
+    carbs: parseFloat(row.querySelector('.fd-carbs').value) || 0,
+    unit: row.querySelector('.fd-unit').value.trim(),
+  })).filter(f => f.name);
+  foodDefs = foods;
+  document.getElementById('foodDefModalOverlay').classList.add('hidden');
+  try{
+    await apiSaveFoodDefs(currentUser, foods);
+    setSyncBadge('cloud', 'Foods saved ✓');
+    setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
+  }catch(e){ setSyncBadge('err', 'Could not save foods — try again'); }
+  renderDiet();
+});
+document.getElementById('manageFoodsBtn').addEventListener('click', openFoodDefModal);
+document.getElementById('foodDefCancelBtn').addEventListener('click', () =>
+  document.getElementById('foodDefModalOverlay').classList.add('hidden'));
+document.getElementById('foodDefModalOverlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('foodDefModalOverlay'))
+    document.getElementById('foodDefModalOverlay').classList.add('hidden');
+});
+
+/* ═══════════════════════════════════════════════
+   FOCUS TIMER
+   ═══════════════════════════════════════════════ */
+const FOCUS_PRESETS = [15, 25, 45, 60];
+let focusDayOffset       = 0;      // 0 = today
+let focusEntries         = [];     // sessions for the currently viewed day
+let activeFocusTimer     = null;   // { activityId, activityLabel, cat, targetSec, startedAtMs, pausedAccumMs, pausedAtMs }
+let focusTickHandle      = null;
+let focusInitialized     = false;
+let focusDoneBanner      = '';
+const focusLogCache      = {};     // dateISO -> { entries, time }
+const FOCUS_LOG_CACHE_TTL = 60000;
+
+function getFocusDate(){ const d = new Date(); d.setDate(d.getDate() + focusDayOffset); return d; }
+function getFocusDateISO(){ return formatISO(getFocusDate()); }
+function focusStorageKey(){ return `${LS_NS}activeTimer:${currentUser}`; }
+
+/* ── API (mirrors apiGetFoodLog/apiSaveFoodLog) ── */
+async function apiGetFocusLog(user, date){
+  const url = `${API_URL}?action=getFocusLog&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
+  const res = await fetchWithTimeout(url);
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Failed to load focus log');
+  return json;
+}
+async function apiSaveFocusLog(user, date, entries){
+  const url  = `${API_URL}?action=saveFocusLog&user=${encodeURIComponent(user)}&date=${date}&token=${sessionToken}`;
+  const body = new FormData();
+  body.append('entries', JSON.stringify(entries));
+  const res = await fetchWithTimeout(url, 15000, { method:'POST', body });
+  if(!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'Failed to save focus log');
+  return json;
+}
+
+/* ── Load / cache (mirrors foodLogCache) ── */
+function touchFocusLogCache(){ focusLogCache[getFocusDateISO()] = { entries: focusEntries, time: Date.now() }; }
+async function loadFocusLog(){
+  const date = getFocusDateISO();
+  const hit  = focusLogCache[date];
+  if(hit && Date.now() - hit.time < FOCUS_LOG_CACHE_TTL){
+    focusEntries = hit.entries;
+    renderFocusAll();
+    return;
+  }
+  try{
+    const res = await apiGetFocusLog(currentUser, date);
+    focusEntries = res.entries || [];
+    focusLogCache[date] = { entries: focusEntries, time: Date.now() };
+  }catch(e){ focusEntries = []; }
+  renderFocusAll();
+}
+
+/* ── Timer math — wall-clock based so it survives tab backgrounding/reload ── */
+function focusRemainingMs(t){
+  const pausedMs = t.pausedAccumMs + (t.pausedAtMs != null ? (Date.now() - t.pausedAtMs) : 0);
+  const elapsed  = Date.now() - t.startedAtMs - pausedMs;
+  return t.targetSec * 1000 - elapsed;
+}
+function persistActiveTimer(){
+  if(activeFocusTimer) localStorage.setItem(focusStorageKey(), JSON.stringify(activeFocusTimer));
+  else localStorage.removeItem(focusStorageKey());
+}
+function startFocusTickLoop(){ clearInterval(focusTickHandle); focusTickHandle = setInterval(tickFocusTimer, 500); }
+function tickFocusTimer(){
+  if(!activeFocusTimer){ clearInterval(focusTickHandle); return; }
+  const remaining = focusRemainingMs(activeFocusTimer);
+  if(remaining <= 0 && activeFocusTimer.pausedAtMs == null){ completeFocusTimer(); return; }
+  renderFocusTimerHost();
+}
+
+/* ── Init — called at login; resumes an in-progress timer or auto-logs one
+   that finished while the app was closed ── */
+function initFocusTimer(){
+  focusInitialized = true;
+  try{
+    const raw = localStorage.getItem(focusStorageKey());
+    if(raw) activeFocusTimer = JSON.parse(raw);
+  }catch(e){ activeFocusTimer = null; }
+
+  if(activeFocusTimer){
+    const remaining = focusRemainingMs(activeFocusTimer);
+    if(remaining <= 0 && activeFocusTimer.pausedAtMs == null){
+      const t = activeFocusTimer;
+      activeFocusTimer = null;
+      persistActiveTimer();
+      finalizeFocusSession(t, t.targetSec, false);
+    } else {
+      startFocusTickLoop();
+    }
+  }
+  loadFocusLog();
+}
+
+/* ── Actions ── */
+function startFocusTimer(activityId, activityLabel, cat, minutes){
+  activeFocusTimer = {
+    activityId, activityLabel, cat,
+    targetSec: Math.max(1, Math.round(minutes * 60)),
+    startedAtMs: Date.now(),
+    pausedAccumMs: 0,
+    pausedAtMs: null,
+  };
+  focusDoneBanner = '';
+  persistActiveTimer();
+  startFocusTickLoop();
+  renderFocusTimerHost();
+}
+function pauseFocusTimer(){
+  if(!activeFocusTimer || activeFocusTimer.pausedAtMs != null) return;
+  activeFocusTimer.pausedAtMs = Date.now();
+  persistActiveTimer();
+  renderFocusTimerHost();
+}
+function resumeFocusTimer(){
+  if(!activeFocusTimer || activeFocusTimer.pausedAtMs == null) return;
+  activeFocusTimer.pausedAccumMs += Date.now() - activeFocusTimer.pausedAtMs;
+  activeFocusTimer.pausedAtMs = null;
+  persistActiveTimer();
+  renderFocusTimerHost();
+}
+function completeFocusTimer(){
+  clearInterval(focusTickHandle);
+  const t = activeFocusTimer;
+  activeFocusTimer = null;
+  persistActiveTimer();
+  playFocusBeep();
+  finalizeFocusSession(t, t.targetSec, true);
+}
+async function stopFocusTimer(){
+  clearInterval(focusTickHandle);
+  const t = activeFocusTimer;
+  if(!t) return;
+  const pausedMs   = t.pausedAccumMs + (t.pausedAtMs != null ? (Date.now() - t.pausedAtMs) : 0);
+  const elapsedSec = Math.floor((Date.now() - t.startedAtMs - pausedMs) / 1000);
+  activeFocusTimer = null;
+  persistActiveTimer();
+  if(elapsedSec >= 5) await finalizeFocusSession(t, elapsedSec, true);
+  else renderFocusAll();
+}
+function cancelFocusTimer(){
+  if(!confirm('Discard this session without logging it?')) return;
+  clearInterval(focusTickHandle);
+  activeFocusTimer = null;
+  persistActiveTimer();
+  renderFocusAll();
+}
+
+// Logs a finished/stopped session against the day it was started on (always
+// "today", since Start is disabled while browsing other days in the day-nav)
+// even if the user has since navigated Focus's day-nav elsewhere.
+async function finalizeFocusSession(t, seconds, showBanner){
+  const entry = {
+    id: genId('fx'),
+    activityId: t.activityId,
+    activityLabel: t.activityLabel,
+    cat: t.cat,
+    seconds,
+    startedAt: new Date(t.startedAtMs).toISOString(),
+  };
+  const dateISO = formatISO(new Date(t.startedAtMs));
+  let dayEntries;
+  if(dateISO === getFocusDateISO()){
+    focusEntries.push(entry);
+    touchFocusLogCache();
+    dayEntries = focusEntries;
+  } else {
+    const cached = focusLogCache[dateISO];
+    dayEntries = cached ? [...cached.entries, entry] : [entry];
+    focusLogCache[dateISO] = { entries: dayEntries, time: Date.now() };
+  }
+  if(showBanner){
+    focusDoneBanner = `✅ Logged ${Math.round(seconds/60)} min on ${escapeHtml(t.activityLabel)}`;
+    setTimeout(() => { focusDoneBanner = ''; renderFocusAll(); }, 4000);
+  }
+  renderFocusAll();
+  try{
+    await apiSaveFocusLog(currentUser, dateISO, dayEntries);
+    setSyncBadge('cloud', 'Focus session saved ✓');
+    setTimeout(() => setSyncBadge('cloud', `Synced — ${USER_A_NAME} &amp; ${USER_B_NAME}`), 2000);
+  }catch(e){ setSyncBadge('err', 'Could not save session — try again'); }
+}
+
+async function removeFocusEntry(id){
+  focusEntries = focusEntries.filter(e => e.id !== id);
+  touchFocusLogCache();
+  renderFocusAll();
+  try{ await apiSaveFocusLog(currentUser, getFocusDateISO(), focusEntries); }catch(e){}
+}
+
+/* ── Sound — short 3-beep tone via Web Audio, no external asset ── */
+function playFocusBeep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.22, 0.44].forEach(t => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.2);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.22);
+    });
+  }catch(e){}
+}
+
+/* ── Rendering ── */
+function formatMMSS(totalSec){
+  const s = Math.max(0, Math.round(totalSec));
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+function focusCatOptionsHTML(){
+  return [...BUILTIN_CATS, ...getCustomCats()]
+    .map(c => `<option value="${c}">${c.charAt(0).toUpperCase()+c.slice(1).replace(/_/g,' ')}</option>`).join('');
+}
+function buildFocusActivityOptions(){
+  const acts  = getActivities(currentUser);
+  const byCat = {};
+  acts.forEach(a => { (byCat[a.cat] = byCat[a.cat] || []).push(a); });
+  const cats  = [...BUILTIN_CATS, ...getCustomCats()].filter(c => byCat[c] && byCat[c].length);
+  let html = '';
+  cats.forEach(cat => {
+    html += `<optgroup label="${cat.charAt(0).toUpperCase()+cat.slice(1).replace(/_/g,' ')}">`;
+    html += byCat[cat].map(a => `<option value="${a.id}">${a.icon} ${escapeHtml(a.label)}</option>`).join('');
+    html += `</optgroup>`;
+  });
+  html += `<optgroup label="Other"><option value="__custom__">✏️ Custom / one-off…</option></optgroup>`;
+  return html;
+}
+
+function renderFocusSetupCard(){
+  const canStart = focusDayOffset === 0;
+  return `<div class="focus-card">
+    <div class="focus-row">
+      <label class="focus-field-label">Activity</label>
+      <select class="focus-select" id="focusActivitySel">
+        <option value="" selected disabled>Choose an activity…</option>
+        ${buildFocusActivityOptions()}
+      </select>
+      <div class="focus-custom-row" id="focusCustomRow" style="display:none">
+        <input type="text" class="focus-text-inp" id="focusCustomLabel" placeholder="What are you working on?">
+        <select class="focus-select" id="focusCustomCat">${focusCatOptionsHTML()}</select>
+      </div>
+    </div>
+    <div class="focus-row">
+      <label class="focus-field-label">Duration</label>
+      <div class="focus-duration-row">
+        ${FOCUS_PRESETS.map(m => `<button type="button" class="focus-preset-btn" data-min="${m}">${m}m</button>`).join('')}
+        <input type="number" class="focus-duration-inp" id="focusDurationInp" min="1" max="180" value="25">
+        <span class="focus-duration-suffix">min</span>
+      </div>
+    </div>
+    <button class="focus-start-btn" id="focusStartBtn"${canStart?'':' disabled'}>${canStart ? '▶ Start Focus Session' : 'Switch to Today to start a session'}</button>
+  </div>`;
+}
+function renderFocusRunningCard(){
+  const t = activeFocusTimer;
+  const remaining = Math.max(0, focusRemainingMs(t) / 1000);
+  const pct = Math.min(100, Math.round((1 - remaining / t.targetSec) * 100));
+  const paused = t.pausedAtMs != null;
+  return `<div class="focus-card focus-running-card">
+    <div class="focus-chip">${escapeHtml(t.activityLabel)}</div>
+    <div class="focus-display${paused?' paused':''}">${formatMMSS(remaining)}</div>
+    <div class="focus-progress-track"><div class="focus-progress-fill" style="width:${pct}%"></div></div>
+    <div class="focus-controls">
+      <button class="focus-ctrl-btn primary" id="focusPauseBtn">${paused ? '▶ Resume' : '⏸ Pause'}</button>
+      <button class="focus-ctrl-btn stop" id="focusStopBtn">✔ Stop &amp; Log</button>
+      <button class="focus-ctrl-btn cancel" id="focusCancelBtn">✕ Cancel</button>
+    </div>
+  </div>`;
+}
+function renderFocusTimerHost(){
+  const host = document.getElementById('focusTimerHost');
+  if(!host) return;
+  const banner = focusDoneBanner ? `<div class="focus-done-banner">${focusDoneBanner}</div>` : '';
+  host.innerHTML = banner + (activeFocusTimer ? renderFocusRunningCard() : renderFocusSetupCard());
+  wireFocusTimerHost();
+}
+function wireFocusTimerHost(){
+  if(activeFocusTimer){
+    document.getElementById('focusPauseBtn')?.addEventListener('click', () =>
+      activeFocusTimer.pausedAtMs != null ? resumeFocusTimer() : pauseFocusTimer());
+    document.getElementById('focusStopBtn')?.addEventListener('click', stopFocusTimer);
+    document.getElementById('focusCancelBtn')?.addEventListener('click', cancelFocusTimer);
+    return;
+  }
+  const sel = document.getElementById('focusActivitySel');
+  const customRow = document.getElementById('focusCustomRow');
+  const durationInp = document.getElementById('focusDurationInp');
+  sel?.addEventListener('change', () => { if(customRow) customRow.style.display = sel.value === '__custom__' ? 'flex' : 'none'; });
+  document.querySelectorAll('.focus-preset-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.focus-preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if(durationInp) durationInp.value = btn.dataset.min;
+  }));
+  document.getElementById('focusStartBtn')?.addEventListener('click', () => {
+    if(!sel || !sel.value) return;
+    const minutes = parseFloat(durationInp?.value) || 0;
+    if(minutes <= 0) return;
+    if(sel.value === '__custom__'){
+      const label = document.getElementById('focusCustomLabel')?.value.trim();
+      const cat   = document.getElementById('focusCustomCat')?.value || 'other';
+      if(!label) return;
+      startFocusTimer('', label, cat, minutes);
+    } else {
+      const act = getActivities(currentUser).find(a => a.id === sel.value);
+      if(!act) return;
+      startFocusTimer(act.id, act.label, act.cat, minutes);
+    }
+  });
+}
+
+function renderFocusSummary(){
+  const host = document.getElementById('focusSummaryHost');
+  if(!host) return;
+  if(!focusEntries.length){
+    host.innerHTML = `<div class="sports-empty">No focus sessions logged for this day yet.</div>`;
+    return;
+  }
+  const totalSec = focusEntries.reduce((s,e) => s + (e.seconds||0), 0);
+  const allActs  = getActivities(currentUser);
+  const groups   = {};
+  focusEntries.forEach(e => {
+    const key = e.activityId || e.activityLabel;
+    if(!groups[key]){
+      const act = allActs.find(a => a.id === e.activityId);
+      groups[key] = { label: e.activityLabel, cat: e.cat, icon: act ? act.icon : '⏱️', entries: [] };
+    }
+    groups[key].entries.push(e);
+  });
+
+  let html = `<div class="focus-total-row"><div class="statcard" style="min-width:140px">
+    <div class="big">${Math.round(totalSec/60)}m</div><div class="lbl">Total focus time</div></div></div>`;
+  html += Object.values(groups).map(g => {
+    const groupSec = g.entries.reduce((s,e) => s + (e.seconds||0), 0);
+    const rows = g.entries.map(e => `
+      <div class="food-entry-row">
+        <span class="food-entry-name">${new Date(e.startedAt || Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+        <span class="food-entry-macro">${formatMMSS(e.seconds)}</span>
+        <button class="food-entry-remove" data-eid="${e.id}">✕</button>
+      </div>`).join('');
+    return `<div class="focus-group">
+      <div class="focus-group-head">
+        <div class="act-icon ${catCSSClass(g.cat)}">${g.icon}</div>
+        <span class="focus-group-label">${escapeHtml(g.label)}</span>
+        <span class="focus-group-total">${Math.round(groupSec/60)}m</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  host.innerHTML = html;
+  host.querySelectorAll('.food-entry-remove').forEach(btn => btn.addEventListener('click', () => removeFocusEntry(btn.dataset.eid)));
+}
+
+function renderFocusAll(){
+  const d = getFocusDate(), iso = formatISO(d);
+  const rangeEl = document.getElementById('focusDateRange');
+  if(rangeEl) rangeEl.textContent = `${DAY_NAMES_FULL[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}` + (iso === todayISO ? ' (Today)' : '');
+  renderFocusTimerHost();
+  renderFocusSummary();
+}
+
+document.getElementById('focusPrevBtn').addEventListener('click', () => { focusDayOffset--; loadFocusLog(); });
+document.getElementById('focusNextBtn').addEventListener('click', () => { focusDayOffset++; loadFocusLog(); });
+document.getElementById('focusTodayBtn').addEventListener('click', () => { focusDayOffset = 0; loadFocusLog(); });
 
 ;(function(){
   const tok  = sessionStorage.getItem('tracker:token');
