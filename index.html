@@ -616,8 +616,40 @@
 
   .focus-running-card{text-align:center;}
   .focus-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);margin-bottom:16px;}
-  .focus-display{font-family:'IBM Plex Mono',monospace;font-size:clamp(40px,10vw,64px);font-weight:600;color:var(--teal);letter-spacing:.02em;line-height:1;margin-bottom:16px;}
-  .focus-display.paused{color:var(--gold);}
+
+  /* ── Flip clock ── */
+  .flip-clock-wrap{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px 0 14px;}
+  .flip-unit{position:relative;width:52px;height:64px;perspective:300px;}
+  .flip-inner{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.65,0,.35,1);}
+  .flip-inner.no-transition{transition:none!important;}
+  .flip-unit.flip-animate .flip-inner{transform:rotateX(-180deg);}
+  .flip-face{
+    position:absolute;inset:0;border-radius:8px;background:#1c2124;color:#d8d8d8;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:30px;
+    backface-visibility:hidden;box-shadow:0 2px 6px rgba(0,0,0,.4);
+  }
+  .flip-face::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.55);}
+  .flip-face.back{transform:rotateX(180deg);}
+  .flip-clock-sep{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;color:var(--ink-soft);}
+  .flip-clock-wrap.paused .flip-face{color:var(--gold);}
+  .flip-clock-wrap.big{gap:16px;margin:10px 0 24px;}
+  .flip-clock-wrap.big .flip-unit{width:clamp(70px,16vw,140px);height:clamp(90px,20vw,180px);}
+  .flip-clock-wrap.big .flip-face{font-size:clamp(38px,9vw,88px);border-radius:14px;}
+  .flip-clock-wrap.big .flip-clock-sep{font-size:clamp(32px,8vw,80px);}
+
+  .focus-expand-btn{display:block;margin:0 auto 14px;font-size:12px;padding:5px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;font-family:'IBM Plex Mono',monospace;}
+  .focus-expand-btn:hover{border-color:var(--teal);color:var(--teal);}
+
+  /* ── Focus fullscreen clock ── */
+  .focus-fullscreen-overlay{position:fixed;inset:0;background:#000;z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;}
+  .focus-fullscreen-overlay.hidden{display:none;}
+  .focus-fullscreen-label{font-family:'Inter',sans-serif;font-size:15px;color:#999;}
+  .focus-fullscreen-close{position:absolute;top:20px;right:24px;width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,.08);color:#aaa;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .focus-fullscreen-close:hover{background:rgba(255,255,255,.16);color:#fff;}
+  .focus-fullscreen-pause-btn{width:46px;height:46px;border-radius:50%;border:none;background:rgba(255,255,255,.08);color:#ddd;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .focus-fullscreen-pause-btn:hover{background:rgba(255,255,255,.16);}
+
   .focus-progress-track{height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-bottom:20px;}
   .focus-progress-fill{height:100%;background:var(--teal);border-radius:999px;transition:width .3s linear;}
   .focus-controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
@@ -640,7 +672,9 @@
 
   @media(max-width:520px){
     .focus-card{padding:14px 12px;}
-    .focus-display{font-size:clamp(34px,14vw,52px);}
+    .flip-unit{width:40px;height:52px;}
+    .flip-face{font-size:22px;}
+    .flip-clock-sep{font-size:20px;}
     .focus-ctrl-btn{padding:9px 16px;font-size:12.5px;}
     .focus-custom-row{flex-direction:column;}
   }
@@ -840,6 +874,13 @@
       <button class="edit-save-btn" id="foodDefSaveBtn">Save</button>
     </div>
   </div>
+</div>
+
+<div class="focus-fullscreen-overlay hidden" id="focusFullscreenOverlay">
+  <button class="focus-fullscreen-close" id="focusFullscreenCloseBtn">✕</button>
+  <div class="focus-fullscreen-label" id="focusFullscreenLabel"></div>
+  <div id="focusFullscreenClockHost"></div>
+  <button class="focus-fullscreen-pause-btn" id="focusFullscreenPauseBtn">⏸</button>
 </div>
 
 <script>
@@ -3418,7 +3459,16 @@ function tickFocusTimer(){
   if(!activeFocusTimer){ clearInterval(focusTickHandle); return; }
   const remaining = focusRemainingMs(activeFocusTimer);
   if(remaining <= 0 && activeFocusTimer.pausedAtMs == null){ completeFocusTimer(); return; }
-  renderFocusTimerHost();
+  // Updates values in place (no innerHTML rebuild) so the flip-clock's CSS
+  // transition actually gets to animate instead of being torn down every tick.
+  const remSec = remaining / 1000;
+  updateFlipClock('focusInline', remSec, true);
+  updateFlipClock('focusFullscreen', remSec, true);
+  const fill = document.getElementById('focusProgressFill');
+  if(fill){
+    const pct = Math.min(100, Math.round((1 - remSec / activeFocusTimer.targetSec) * 100));
+    fill.style.width = pct + '%';
+  }
 }
 
 /* ── Init — called at login; resumes an in-progress timer or auto-logs one
@@ -3463,6 +3513,7 @@ function pauseFocusTimer(){
   activeFocusTimer.pausedAtMs = Date.now();
   persistActiveTimer();
   renderFocusTimerHost();
+  updateFocusFullscreenPauseBtn();
 }
 function resumeFocusTimer(){
   if(!activeFocusTimer || activeFocusTimer.pausedAtMs == null) return;
@@ -3470,9 +3521,11 @@ function resumeFocusTimer(){
   activeFocusTimer.pausedAtMs = null;
   persistActiveTimer();
   renderFocusTimerHost();
+  updateFocusFullscreenPauseBtn();
 }
 function completeFocusTimer(){
   clearInterval(focusTickHandle);
+  closeFocusFullscreen();
   const t = activeFocusTimer;
   activeFocusTimer = null;
   persistActiveTimer();
@@ -3483,6 +3536,7 @@ async function stopFocusTimer(){
   clearInterval(focusTickHandle);
   const t = activeFocusTimer;
   if(!t) return;
+  closeFocusFullscreen();
   const pausedMs   = t.pausedAccumMs + (t.pausedAtMs != null ? (Date.now() - t.pausedAtMs) : 0);
   const elapsedSec = Math.floor((Date.now() - t.startedAtMs - pausedMs) / 1000);
   activeFocusTimer = null;
@@ -3493,6 +3547,7 @@ async function stopFocusTimer(){
 function cancelFocusTimer(){
   if(!confirm('Discard this session without logging it?')) return;
   clearInterval(focusTickHandle);
+  closeFocusFullscreen();
   activeFocusTimer = null;
   persistActiveTimer();
   renderFocusAll();
@@ -3557,6 +3612,85 @@ function playFocusBeep(){
   }catch(e){}
 }
 
+/* ── Flip clock — a 2-face card per unit (HH/MM/SS); flips 0→-180deg on
+   value change, swapping the front face's text at the animation's midpoint
+   (via a delayed transition-less reset) so it settles showing the new
+   value face-up. Same markup/update path drives both the small inline
+   clock in the running card and the big one in the fullscreen overlay. ── */
+function flipClockHTML(prefix, extraClass){
+  const unit = id => `<div class="flip-unit" id="${id}">
+    <div class="flip-inner">
+      <div class="flip-face front">00</div>
+      <div class="flip-face back">00</div>
+    </div>
+  </div>`;
+  return `<div class="flip-clock-wrap ${extraClass || ''}">
+    ${unit(prefix + '-hh')}
+    <div class="flip-clock-sep">:</div>
+    ${unit(prefix + '-mm')}
+    <div class="flip-clock-sep">:</div>
+    ${unit(prefix + '-ss')}
+  </div>`;
+}
+function setFlipUnit(unitEl, value, animate){
+  if(!unitEl) return;
+  const front = unitEl.querySelector('.front');
+  const back  = unitEl.querySelector('.back');
+  if(front.textContent === value) return;
+  if(!animate){ front.textContent = value; back.textContent = value; unitEl.classList.remove('flip-animate'); return; }
+  back.textContent = value;
+  unitEl.classList.add('flip-animate');
+  setTimeout(() => {
+    const inner = unitEl.querySelector('.flip-inner');
+    if(!inner) return;
+    inner.classList.add('no-transition');
+    unitEl.classList.remove('flip-animate');
+    front.textContent = value;
+    void inner.offsetWidth; // force reflow before re-enabling the transition
+    inner.classList.remove('no-transition');
+  }, 500);
+}
+function updateFlipClock(prefix, totalSec, animate){
+  const s  = Math.max(0, Math.round(totalSec));
+  const hh = String(Math.floor(s / 3600)).padStart(2,'0');
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2,'0');
+  const ss = String(s % 60).padStart(2,'0');
+  setFlipUnit(document.getElementById(prefix + '-hh'), hh, animate);
+  setFlipUnit(document.getElementById(prefix + '-mm'), mm, animate);
+  setFlipUnit(document.getElementById(prefix + '-ss'), ss, animate);
+}
+
+/* ── Fullscreen clock ── */
+document.getElementById('focusFullscreenClockHost').innerHTML = flipClockHTML('focusFullscreen', 'big');
+function openFocusFullscreen(){
+  if(!activeFocusTimer) return;
+  const overlay = document.getElementById('focusFullscreenOverlay');
+  const label   = document.getElementById('focusFullscreenLabel');
+  if(label) label.textContent = activeFocusTimer.activityLabel;
+  overlay.classList.remove('hidden');
+  const remaining = Math.max(0, focusRemainingMs(activeFocusTimer) / 1000);
+  updateFlipClock('focusFullscreen', remaining, false);
+  updateFocusFullscreenPauseBtn();
+}
+function closeFocusFullscreen(){
+  document.getElementById('focusFullscreenOverlay')?.classList.add('hidden');
+}
+function updateFocusFullscreenPauseBtn(){
+  const btn = document.getElementById('focusFullscreenPauseBtn');
+  if(!btn || !activeFocusTimer) return;
+  btn.textContent = activeFocusTimer.pausedAtMs != null ? '▶' : '⏸';
+}
+document.getElementById('focusFullscreenCloseBtn').addEventListener('click', closeFocusFullscreen);
+document.getElementById('focusFullscreenPauseBtn').addEventListener('click', () => {
+  if(!activeFocusTimer) return;
+  if(activeFocusTimer.pausedAtMs != null) resumeFocusTimer(); else pauseFocusTimer();
+});
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Escape') return;
+  const overlay = document.getElementById('focusFullscreenOverlay');
+  if(overlay && !overlay.classList.contains('hidden')) closeFocusFullscreen();
+});
+
 /* ── Rendering ── */
 function formatMMSS(totalSec){
   const s = Math.max(0, Math.round(totalSec));
@@ -3613,8 +3747,9 @@ function renderFocusRunningCard(){
   const paused = t.pausedAtMs != null;
   return `<div class="focus-card focus-running-card">
     <div class="focus-chip">${escapeHtml(t.activityLabel)}</div>
-    <div class="focus-display${paused?' paused':''}">${formatMMSS(remaining)}</div>
-    <div class="focus-progress-track"><div class="focus-progress-fill" style="width:${pct}%"></div></div>
+    ${flipClockHTML('focusInline', paused ? 'paused' : '')}
+    <button type="button" class="focus-expand-btn" id="focusExpandBtn">⛶ Fullscreen</button>
+    <div class="focus-progress-track"><div class="focus-progress-fill" id="focusProgressFill" style="width:${pct}%"></div></div>
     <div class="focus-controls">
       <button class="focus-ctrl-btn primary" id="focusPauseBtn">${paused ? '▶ Resume' : '⏸ Pause'}</button>
       <button class="focus-ctrl-btn stop" id="focusStopBtn">✔ Stop &amp; Log</button>
@@ -3628,6 +3763,12 @@ function renderFocusTimerHost(){
   const banner = focusDoneBanner ? `<div class="focus-done-banner">${focusDoneBanner}</div>` : '';
   host.innerHTML = banner + (activeFocusTimer ? renderFocusRunningCard() : renderFocusSetupCard());
   wireFocusTimerHost();
+  // Fresh markup always starts its flip units at "00:00:00" — sync it to the
+  // real remaining time immediately, without animating (that's not a tick).
+  if(activeFocusTimer){
+    const remaining = Math.max(0, focusRemainingMs(activeFocusTimer) / 1000);
+    updateFlipClock('focusInline', remaining, false);
+  }
 }
 function wireFocusTimerHost(){
   if(activeFocusTimer){
@@ -3635,6 +3776,7 @@ function wireFocusTimerHost(){
       activeFocusTimer.pausedAtMs != null ? resumeFocusTimer() : pauseFocusTimer());
     document.getElementById('focusStopBtn')?.addEventListener('click', stopFocusTimer);
     document.getElementById('focusCancelBtn')?.addEventListener('click', cancelFocusTimer);
+    document.getElementById('focusExpandBtn')?.addEventListener('click', openFocusFullscreen);
     return;
   }
   const sel = document.getElementById('focusActivitySel');
