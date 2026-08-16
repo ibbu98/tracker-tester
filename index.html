@@ -648,18 +648,18 @@
   /* ── Flip clock — true split-flap: only one half moves at a time. The top
      leaf falls away (0→-90deg) to reveal the new top half, then the bottom
      leaf swings down (90→0deg) to reveal the new bottom half. ── */
-  .flip-clock-wrap{display:flex;align-items:center;justify-content:center;gap:14px;margin:12px 0 20px;}
-  .flip-unit{position:relative;width:104px;height:128px;perspective:320px;}
+  .flip-clock-wrap{display:flex;align-items:center;justify-content:center;gap:16px;margin:14px 0 22px;}
+  .flip-unit{position:relative;width:130px;height:160px;perspective:340px;}
   .digit-half{position:absolute;left:0;right:0;height:50%;overflow:hidden;background:#1c2124;}
   .digit-half::after{content:'';position:absolute;left:0;right:0;height:1px;background:rgba(0,0,0,.55);}
-  .base-top,.leaf-top{top:0;border-radius:14px 14px 0 0;}
+  .base-top,.leaf-top{top:0;border-radius:16px 16px 0 0;}
   .base-top::after,.leaf-top::after{bottom:0;}
-  .base-bottom,.leaf-bottom{bottom:0;border-radius:0 0 14px 14px;}
+  .base-bottom,.leaf-bottom{bottom:0;border-radius:0 0 16px 16px;}
   .base-bottom::after,.leaf-bottom::after{top:0;}
   .digit-half .num{
     position:absolute;left:0;right:0;height:200%;
     display:flex;align-items:center;justify-content:center;
-    font-family:"Comic Sans MS",'Comic Neue',cursive;font-weight:700;font-size:60px;color:#d8d8d8;
+    font-family:"Comic Sans MS",'Comic Neue',cursive;font-weight:700;font-size:75px;color:#d8d8d8;
   }
   .base-top .num,.leaf-top .num{top:0;}
   .base-bottom .num,.leaf-bottom .num{bottom:0;}
@@ -669,23 +669,23 @@
   .flip-unit.flip-s1 .leaf-top{transform:rotateX(-90deg);}
   .flip-unit.flip-s2 .leaf-bottom{transform:rotateX(0deg);}
   .leaf.no-transition{transition:none!important;}
-  .flip-clock-sep{font-family:"Comic Sans MS",'Comic Neue',cursive;font-size:50px;font-weight:700;color:var(--ink-soft);}
+  .flip-clock-sep{font-family:"Comic Sans MS",'Comic Neue',cursive;font-size:62px;font-weight:700;color:var(--ink-soft);}
   .flip-clock-wrap.paused .digit-half .num{color:var(--gold);}
-  .flip-clock-wrap.big{gap:22px;margin:16px 0 30px;}
-  .flip-clock-wrap.big .flip-unit{width:clamp(120px,25vw,240px);height:clamp(154px,30vw,300px);}
-  .flip-clock-wrap.big .digit-half{border-radius:18px;}
-  .flip-clock-wrap.big .base-top,.flip-clock-wrap.big .leaf-top{border-radius:18px 18px 0 0;}
-  .flip-clock-wrap.big .base-bottom,.flip-clock-wrap.big .leaf-bottom{border-radius:0 0 18px 18px;}
-  .flip-clock-wrap.big .digit-half .num{font-size:clamp(68px,15vw,150px);}
-  .flip-clock-wrap.big .flip-clock-sep{font-size:clamp(58px,13vw,132px);}
+  .flip-clock-wrap.big{gap:26px;margin:18px 0 32px;}
+  .flip-clock-wrap.big .flip-unit{width:clamp(145px,28vw,280px);height:clamp(185px,33vw,350px);}
+  .flip-clock-wrap.big .digit-half{border-radius:20px;}
+  .flip-clock-wrap.big .base-top,.flip-clock-wrap.big .leaf-top{border-radius:20px 20px 0 0;}
+  .flip-clock-wrap.big .base-bottom,.flip-clock-wrap.big .leaf-bottom{border-radius:0 0 20px 20px;}
+  .flip-clock-wrap.big .digit-half .num{font-size:clamp(80px,17vw,170px);}
+  .flip-clock-wrap.big .flip-clock-sep{font-size:clamp(68px,15vw,150px);}
 
   .focus-expand-btn{display:block;margin:0 auto 14px;font-size:14px;padding:7px 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;font-family:"Comic Sans MS",'Comic Neue',cursive;}
   .focus-expand-btn:hover{border-color:var(--teal);color:var(--teal);}
 
   /* ── Real (live wall-clock) date + time — small, secondary to the countdown ── */
   .real-clock{text-align:center;margin-bottom:18px;}
-  .real-clock-date{font-family:"Comic Sans MS",'Comic Neue',cursive;font-size:18px;color:var(--ink-soft);letter-spacing:.03em;}
-  .real-clock-time{font-family:"Comic Sans MS",'Comic Neue',cursive;font-size:26px;color:var(--ink);font-weight:600;margin-top:4px;letter-spacing:.02em;}
+  .real-clock-date{font-family:"Comic Sans MS",'Comic Neue',cursive;font-size:24px;color:var(--ink-soft);letter-spacing:.03em;}
+  .real-clock-time{font-family:"Comic Sans MS",'Comic Neue',cursive;font-size:34px;color:var(--ink);font-weight:600;margin-top:5px;letter-spacing:.02em;}
   .real-clock.on-black{margin-bottom:0;}
   .real-clock.on-black .real-clock-date{color:#888;}
   .real-clock.on-black .real-clock-time{color:#bbb;}
@@ -721,9 +721,11 @@
 
   @media(max-width:520px){
     .focus-card{padding:14px 12px;}
-    .flip-unit{width:72px;height:92px;}
-    .digit-half .num{font-size:41px;}
-    .flip-clock-sep{font-size:35px;}
+    .flip-unit{width:88px;height:112px;}
+    .digit-half .num{font-size:50px;}
+    .flip-clock-sep{font-size:42px;}
+    .real-clock-date{font-size:19px;}
+    .real-clock-time{font-size:27px;}
     .focus-ctrl-btn{padding:9px 16px;font-size:12.5px;}
     .focus-custom-row{flex-direction:column;}
   }
